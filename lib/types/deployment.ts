@@ -1,13 +1,10 @@
-import IBase from "./base";
-import { EStubType, IStub } from "./stub";
+import BaseData from "./base";
+import { EStubType, Stub } from "./stub";
 
-export interface IDeployment extends IBase {
+export interface DeploymentData extends BaseData {
   name: string;
   version: number;
-  started_at: string;
-  ended_at: string;
   active: boolean;
   stub_type: EStubType;
-  stub_id: string;
-  stub: IStub;
+  stub: Stub;
 }

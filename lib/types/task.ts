@@ -1,14 +1,14 @@
-import IBase from "./base";
-import { IStub } from "./stub";
+import BaseData from "./base";
+import { Stub } from "./stub";
 
-export interface ITask extends IBase {
+export interface TaskData extends BaseData {
   started_at: string;
   ended_at: string;
   status: ETaskStatus;
-  stats: ITaskStats;
+  stats: TaskStats;
   container_id: string;
-  deployment: ITaskDeployment;
-  stub: IStub;
+  deployment: TaskDeployment;
+  stub: Stub;
 }
 
 export enum ETaskStatus {
@@ -22,11 +22,11 @@ export enum ETaskStatus {
   EXPIRED = "EXPIRED",
 }
 
-interface ITaskStats {
+export interface TaskStats {
   queue_depth: number;
 }
 
-interface ITaskDeployment {
+export interface TaskDeployment {
   id: string;
   name: string;
   version: string;

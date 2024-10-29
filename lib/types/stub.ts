@@ -1,6 +1,6 @@
-import IBase from "./base";
+import BaseData from "./base";
 
-export interface IStub extends IBase {
+export interface Stub extends BaseData {
   id: string;
   config: string;
   config_version: number;
@@ -24,8 +24,4 @@ export enum EStubType {
   ScheduledJob = "schedule",
   ScheduledJobDeployment = "schedule/deployment",
   Unknown = "unknown",
-}
-
-export interface IStubURL {
-  url: string;
 }

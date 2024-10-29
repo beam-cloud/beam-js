@@ -1,15 +1,38 @@
-const Beta9 = require("../dist/index");
+const beamc = require("../dist").default;
 
 async function main() {
-  Beta9.init({
-    apiToken:
+  // beta9.init({
+  //   apiToken:
+  //     "9Ftik6xP1o1mHPpV9L8Mew7Lpb6lb74O-k0ybHhSjAp7Qd89v7EqNLyMynjYl7NiTM0fn0PBfKQmfafabIUrfg==",
+  //   workspaceId: "103f0baa-6afc-46ca-8749-c053952468d1",
+  // });
+
+  const beam = new beamc({
+    token:
       "9Ftik6xP1o1mHPpV9L8Mew7Lpb6lb74O-k0ybHhSjAp7Qd89v7EqNLyMynjYl7NiTM0fn0PBfKQmfafabIUrfg==",
     workspaceId: "103f0baa-6afc-46ca-8749-c053952468d1",
   });
 
-  // const dep = new Beta9.Endpoint({
-  //   name: "test",
-  // });
+  // const t = await beam.tasks.get("330ea121-944a-4908-adb8-16ec5e557dc6");
+  // console.log(t);
+  // console.log(t.data);
+  const deps = await beam.deployments.list();
+
+  const res = await deps[1].call({
+    data: 1,
+  });
+
+  console.log(res);
+
+  // console.log(deps);
+
+  // dep2.call({});
+  // dep2.call({});
+
+  // const deps = await beam.deployment.list();
+
+  // const data = await dep.call({});
+  // console.log(data.data);
 
   // const w = await dep.realtime("/ws", (e) => {
   //   console.log(e.data);
@@ -20,7 +43,7 @@ async function main() {
 
   // setTimeout(() => {
   //   w.close();
-  // }, 1000);
+  // }, 10000);
 
   // try {
   //   await dep.retrieve();
@@ -39,10 +62,8 @@ async function main() {
   //   return;
   // }
 
-  const someTask = await Beta9.Task.Retrieve(
-    "330ea121-944a-4908-adb8-16ec5e557dc6"
-  );
-  console.log(someTask.data);
+  // const someTask = await beta9.task.get("330ea121-944a-4908-adb8-16ec5e557dc6");
+  // console.log(someTask);
 }
 
 main();
