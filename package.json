@@ -1,6 +1,6 @@
 {
   "name": "@beamcloud/beam-js",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Javascript SDK to interact with Beam",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -9,8 +9,8 @@
   "author": "John <john@slai.io>",
   "license": "MIT",
   "scripts": {
-    "build": "tsc",
-    "prepublish": "yarn build && cp package.json dist/ && cp README.md dist/"
+    "build": "tsc-multi",
+    "prepublish": "yarn build"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -28,6 +28,9 @@
     "typescript": "^5.0.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md",
+    "package.json"
   ]
 }
