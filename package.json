@@ -1,13 +1,12 @@
 {
-  "name": "beta9-js",
-  "version": "0.0.1",
-  "description": "Javascript SDK to interact with Beta9",
+  "name": "@beamcloud/beam-js",
+  "version": "0.0.3",
+  "description": "Javascript SDK to interact with Beam",
   "main": "index.ts",
   "repository": "git@github.com:beam-cloud/beta9-js.git",
   "author": "John <john@slai.io>",
   "license": "MIT",
   "scripts": {
-    "build-cli": "bun build index-cli.ts --compile --outfile ./bin/cli",
     "build": "tsc"
   },
   "bin": {
@@ -19,11 +18,14 @@
     "socket.io": "^4.8.0"
   },
   "devDependencies": {
-    "@types/node": "^22.7.9",
+    "@types/node": "^22.8.4",
     "bun-types": "latest",
     "ts-node": "^10.9.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
