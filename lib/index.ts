@@ -1,0 +1,60 @@
+import axios, { Axios, AxiosRequestConfig } from "axios";
+import { Deployments } from "./resources/deployment";
+import { Tasks } from "./resources/task";
+
+export interface BeamClientOpts {
+  token: string;
+  workspaceId: string;
+  gatewayUrl?: string;
+  timeout?: number;
+}
+
+export default class BeamClient {
+  private _client: Axios;
+  public opts: BeamClientOpts = {
+    token: "",
+    workspaceId: "",
+    gatewayUrl: "http://localhost:1994",
+  };
+  deployments: Deployments = new Deployments(this);
+  tasks: Tasks = new Tasks(this);
+
+  public constructor(opts: BeamClientOpts) {
+    this.opts = {
+      ...this.opts,
+      ...opts,
+    };
+
+    this._client = axios.create({
+      baseURL: this.opts.gatewayUrl,
+      headers: {
+        Authorization: `Bearer ${this.opts.token}`,
+        "Content-Type": "application/json",
+      },
+      timeout: this.opts.timeout,
+    });
+  }
+
+  public static async init(token: string): Promise<BeamClient> {
+    const client = new BeamClient({
+      token,
+      workspaceId: "",
+    });
+    const workspace = await client._getWorkspace();
+    client.opts.workspaceId = workspace.external_id;
+    return client;
+  }
+
+  public async request(config: AxiosRequestConfig): Promise<any> {
+    return await this._client.request(config);
+  }
+
+  public async _getWorkspace(): Promise<any> {
+    const response = await this.request({
+      method: "GET",
+      url: `/api/v1/workspace/current`,
+    });
+
+    return response.data;
+  }
+}
