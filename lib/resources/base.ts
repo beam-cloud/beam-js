@@ -32,7 +32,7 @@ abstract class APIResource<Resource, ResourceType> {
     return await this.client.request(config);
   }
 
-  public async get(id: string): Promise<Resource> {
+  public async get({ id }: { id: string }): Promise<Resource> {
     const resp = await this.client.request({
       url: `/api/v1/${this.object}/${this.client.opts.workspaceId}/${id}`,
     });
@@ -47,10 +47,11 @@ abstract class APIResource<Resource, ResourceType> {
   }
 
   public async list(opts?: any): Promise<Resource[]> {
-    // const params = HttpClient.parseOptsIntoParams(opts);
-
+    const params = this.client._parseOptsToURLParams(opts);
     const resp = await this.client.request({
-      url: `/api/v1/${this.object}/${this.client.opts.workspaceId}`,
+      url: `/api/v1/${this.object}/${
+        this.client.opts.workspaceId
+      }?${params.toString()}`,
     });
 
     if (resp.status !== 200) {

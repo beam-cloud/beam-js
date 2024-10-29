@@ -1,6 +1,7 @@
 import axios, { Axios, AxiosRequestConfig } from "axios";
 import { Deployments } from "./resources/deployment";
 import { Tasks } from "./resources/task";
+import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
   token: string;
@@ -56,5 +57,9 @@ export default class BeamClient {
     });
 
     return response.data;
+  }
+
+  public _parseOptsToURLParams(opts: Record<string, any>): URLSearchParams {
+    return new URLSearchParams(camelCaseToSnakeCaseKeys(opts));
   }
 }

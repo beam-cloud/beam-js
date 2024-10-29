@@ -30,7 +30,7 @@ export class Task implements ResourceObject<TaskData> {
   }
 
   public async refresh(): Promise<Task> {
-    const data = await this.manager.get(this.data.id);
+    const data = await this.manager.get({ id: this.data.id });
     this.data = data.data;
     return this;
   }
