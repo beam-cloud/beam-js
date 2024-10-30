@@ -118,9 +118,15 @@ export class Deployment implements ResourceObject<DeploymentData> {
     path: string = "",
     onmessage?: (event: MessageEvent) => void
   ): Promise<WebSocket> {
-    const ws = new WebSocket(this.websocketUrl(path));
+    let _WebSocket: any;
+    try {
+      _WebSocket = WebSocket;
+    } catch (e) {
+      _WebSocket = (await import("ws")).WebSocket;
+    }
+    const ws = new _WebSocket(this.websocketUrl(path));
 
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: MessageEvent) => {
       onmessage && onmessage(event);
     };
 
