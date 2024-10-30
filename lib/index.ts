@@ -17,6 +17,7 @@ export default class BeamClient {
     workspaceId: "",
     gatewayUrl: "http://localhost:1994",
   };
+  static BeamClient = this;
   deployments: Deployments = new Deployments(this);
   tasks: Tasks = new Tasks(this);
 

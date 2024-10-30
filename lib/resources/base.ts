@@ -47,6 +47,10 @@ abstract class APIResource<Resource, ResourceType> {
   }
 
   public async list(opts?: any): Promise<Resource[]> {
+    if (!opts) {
+      opts = {};
+    }
+
     const params = this.client._parseOptsToURLParams(opts);
     const resp = await this.client.request({
       url: `/api/v1/${this.object}/${
