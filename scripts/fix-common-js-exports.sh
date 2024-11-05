@@ -1,0 +1,1 @@
+echo "exports = module.exports = lib_1.default" >> ./dist/index.js

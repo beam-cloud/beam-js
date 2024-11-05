@@ -1,6 +1,7 @@
 import axios, { Axios, AxiosRequestConfig } from "axios";
 import { Deployments } from "./resources/deployment";
 import { Tasks } from "./resources/task";
+import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
   token: string;
@@ -14,8 +15,9 @@ export default class BeamClient {
   public opts: BeamClientOpts = {
     token: "",
     workspaceId: "",
-    gatewayUrl: "http://localhost:1994",
+    gatewayUrl: "https://app.beam.cloud",
   };
+  static BeamClient = this;
   deployments: Deployments = new Deployments(this);
   tasks: Tasks = new Tasks(this);
 
@@ -56,5 +58,9 @@ export default class BeamClient {
     });
 
     return response.data;
+  }
+
+  public _parseOptsToURLParams(opts: Record<string, any>): URLSearchParams {
+    return new URLSearchParams(camelCaseToSnakeCaseKeys(opts));
   }
 }

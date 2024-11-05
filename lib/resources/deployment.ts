@@ -14,11 +14,81 @@ export interface ListDeploymentsOptions {
   createdAtEnd?: string;
 }
 
+interface DeploymentGetParams {
+  id?: string;
+  name?: string;
+  stubType?: EStubType;
+  url?: string;
+}
+
 export class Deployments extends APIResource<Deployment, DeploymentData> {
   public object: string = "deployment";
 
   protected _constructResource(data: any): Deployment {
     return new Deployment(this, data);
+  }
+
+  public async get(opts: DeploymentGetParams): Promise<Deployment> {
+    const isId = opts.id !== undefined;
+    const isNameAndStubType =
+      opts.name !== undefined && opts.stubType !== undefined;
+    const isUrl = opts.url !== undefined;
+
+    if (!isId && !isNameAndStubType && !isUrl) {
+      throw new Error(
+        "Invalid parameters for get(). Must provide id, or name + stubType, or url."
+      );
+    }
+
+    if (isId) {
+      return super.get({ id: opts.id! });
+    }
+
+    if (isNameAndStubType) {
+      let stubType = opts.stubType!.toString();
+      const stubTypeSplit = stubType.split("/");
+
+      if (stubTypeSplit.length < 2) {
+        stubType = `${stubType}/deployment`;
+      }
+
+      const res = await this.list({
+        stubType,
+        name: opts.name!,
+      });
+
+      if (res.length === 0) {
+        throw new Error("Deployment not found.");
+      }
+
+      return res[0];
+    }
+
+    if (isUrl) {
+      const url = new URL(opts.url!);
+      const subdomain = url.hostname.split(".")[0];
+      const regex = /(-v\d+|-latest)$/;
+      const versionMatch = subdomain.match(regex);
+      let version;
+      if (versionMatch && versionMatch.length > 0) {
+        version = versionMatch[0].replace("-", "");
+      }
+
+      const res = await this.list({
+        subdomain: subdomain.replace(regex, ""),
+        version,
+      });
+
+      if (res.length === 0) {
+        throw new Error("Deployment not found.");
+      }
+
+      return res[0];
+    }
+
+    throw new Error(
+      "Invalid parameters for get(). Must provide id, or name + stubType, or url."
+    );
   }
 }
 
@@ -32,7 +102,7 @@ export class Deployment implements ResourceObject<DeploymentData> {
   }
 
   public async refresh(): Promise<Deployment> {
-    const data = await this.manager.get(this.data.id);
+    const data = await this.manager.get({ id: this.data.id });
     this.data = data.data;
     return this;
   }
@@ -57,9 +127,15 @@ export class Deployment implements ResourceObject<DeploymentData> {
     path: string = "",
     onmessage?: (event: MessageEvent) => void
   ): Promise<WebSocket> {
-    const ws = new WebSocket(this.websocketUrl(path));
+    let _WebSocket: any;
+    try {
+      _WebSocket = WebSocket;
+    } catch (e) {
+      _WebSocket = (await import("ws")).WebSocket;
+    }
+    const ws = new _WebSocket(this.websocketUrl(path));
 
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: MessageEvent) => {
       onmessage && onmessage(event);
     };
 
