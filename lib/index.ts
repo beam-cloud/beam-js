@@ -15,7 +15,7 @@ export default class BeamClient {
   public opts: BeamClientOpts = {
     token: "",
     workspaceId: "",
-    gatewayUrl: "http://localhost:1994",
+    gatewayUrl: "https://app.beam.cloud",
   };
   static BeamClient = this;
   deployments: Deployments = new Deployments(this);

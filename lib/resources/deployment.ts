@@ -68,7 +68,16 @@ export class Deployments extends APIResource<Deployment, DeploymentData> {
       const url = new URL(opts.url!);
       const subdomain = url.hostname.split(".")[0];
       const regex = /(-v\d+|-latest)$/;
-      const res = await this.list({ subdomain: subdomain.replace(regex, "") });
+      const versionMatch = subdomain.match(regex);
+      let version;
+      if (versionMatch && versionMatch.length > 0) {
+        version = versionMatch[0].replace("-", "");
+      }
+
+      const res = await this.list({
+        subdomain: subdomain.replace(regex, ""),
+        version,
+      });
 
       if (res.length === 0) {
         throw new Error("Deployment not found.");
