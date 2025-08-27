@@ -17,14 +17,7 @@ import {
 } from "../types/image";
 import { camelCaseToSnakeCaseKeys } from "../util";
 
-const DEFAULT_PYTHON_VERSION: PythonVersion = "python3";
-
-function detectedPythonVersion(): PythonVersion {
-  // In a browser/Node.js environment, we can't detect the local Python version
-  // so we'll default to python3
-  return DEFAULT_PYTHON_VERSION;
-}
-
+const DEFAULT_PYTHON_VERSION: PythonVersion = "python3.10";
 export class Images extends APIResource<Image, ImageData> {
   public object: string = "image";
 
@@ -41,10 +34,7 @@ export class Images extends APIResource<Image, ImageData> {
       data: apiRequest,
       responseType: "stream",
     });
-    console.log("Sending request:", apiRequest);
-    console.log("Response:", response);
 
-    // TODO: Implement streaming response
     return this._createAsyncIterable(response);
   }
 
@@ -59,13 +49,36 @@ export class Images extends APIResource<Image, ImageData> {
   }
 
   private async *_createAsyncIterable(response: any): AsyncIterable<BuildImageResponse> {
-    // TODO: Implement streaming response
-    yield {
-      success: true,
-      done: true,
-      msg: "Build completed",
-      imageId: "image-id",
-    };
+    const stream = response.data;
+    let buffer = '';
+    
+    for await (const chunk of stream) {
+      buffer += chunk.toString();
+      console.log("Build progress:", chunk.toString());
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine) {
+          try {
+            const jsonResponse = JSON.parse(trimmedLine).result;
+            yield jsonResponse as BuildImageResponse;
+          } catch (error) {
+            console.warn('Failed to parse JSON line:', trimmedLine, error);
+          }
+        }
+      }
+    }
+    
+    if (buffer.trim()) {
+      try {
+        const jsonResponse = JSON.parse(buffer.trim()).result;
+        yield jsonResponse as BuildImageResponse;
+      } catch (error) {
+        console.warn('Failed to parse final JSON:', buffer, error);
+      }
+    }
   }
 
   public async verifyImageBuild(request: VerifyImageBuildRequest): Promise<VerifyImageBuildResponse> {
@@ -89,8 +102,6 @@ export class Images extends APIResource<Image, ImageData> {
     
     return transformed;
   }
-
-
 }
 
 export class Image {
@@ -144,7 +155,7 @@ export class Image {
       pythonPackages = config.pythonPackages;
     }
 
-    image.pythonVersion = config.pythonVersion || detectedPythonVersion();
+    image.pythonVersion = config.pythonVersion || DEFAULT_PYTHON_VERSION;
     image.pythonPackages = image._sanitizePythonPackages(pythonPackages);
     image.commands = config.commands || [];
     image.baseImage = config.baseImage || "";
