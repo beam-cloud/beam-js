@@ -1,6 +1,7 @@
 import axios, { Axios, AxiosRequestConfig } from "axios";
 import { Deployments } from "./resources/deployment";
 import { Tasks } from "./resources/task";
+import { Images } from "./resources/image";
 import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
@@ -20,6 +21,7 @@ export default class BeamClient {
   static BeamClient = this;
   deployments: Deployments = new Deployments(this);
   tasks: Tasks = new Tasks(this);
+  images: Images = new Images(this);
 
   public constructor(opts: BeamClientOpts) {
     this.opts = {
