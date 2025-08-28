@@ -127,7 +127,6 @@ export class Image {
     this.manager = manager;
     this.data = data as ImageData;
 
-    // Initialize configuration from data or defaults
     this.pythonVersion = data?.pythonVersion || DEFAULT_PYTHON_VERSION;
     this.pythonPackages = data?.pythonPackages || [];
     this.commands = data?.commands || [];
@@ -296,6 +295,10 @@ export class Image {
     };
   }
 
+  /**
+   * Use micromamba to manage python packages.
+   * @returns The image instance.
+   */
   micromamba(): Image {
     if (this.pythonVersion === "python3") {
       this.pythonVersion = "python3.11";
@@ -304,6 +307,16 @@ export class Image {
     return this;
   }
 
+  /**
+   * Add micromamba packages that will be installed when building the image.
+   * These will be executed at the end of the image build and in the
+   * order they are added. If a single string is provided, it will be
+   * interpreted as a path to a requirements.txt file.
+
+   * @param packages The micromamba packages to add or the path to a requirements.txt file.
+   * @param channels The micromamba channels to use.
+   * @returns The image instance
+   */
   addMicromambaPackages(packages: string[] | string, channels: string[] = []): Image {
     if (!this.pythonVersion.startsWith("micromamba")) {
       throw new Error("Micromamba must be enabled to use this method.");
@@ -327,6 +340,11 @@ export class Image {
     return this;
   }
 
+  /**
+   * Add shell commands that will be executed when building the image.
+   * @param commands The shell commands to execute.
+   * @returns The image instance.
+   */
   addCommands(commands: string[]): Image {
     for (const command of commands) {
       this.buildSteps.push({ command, type: "shell" });
@@ -334,6 +352,16 @@ export class Image {
     return this;
   }
 
+  /**
+   * Add python packages that will be installed when building the image.
+   * These will be executed at the end of the image build and in the
+   * order they are added. 
+   * If a single string is provided, it will be
+   * interpreted as a path to a requirements.txt file.
+   *
+   * @param packages The python packages to add or the path to a requirements.txt file. Valid package names are: numpy, pandas==2.2.2, etc.
+   * @returns The image instance.
+   */
   addPythonPackages(packages: string[] | string): Image {
     let packageList: string[];
     if (typeof packages === "string") {
@@ -354,6 +382,12 @@ export class Image {
     return this;
   }
 
+  /**
+   * Add a local path to the image. 
+   * 
+   * @param pattern The pattern to add. This can be a glob pattern or a single file.
+   * @returns The image instance.
+   */
   addLocalPath(pattern: string = "*"): Image {
     let processedPath = pattern;
     if (pattern === ".") {
@@ -363,6 +397,17 @@ export class Image {
     return this;
   }
 
+  /**
+   * Add environment variables to the image.
+   * 
+   * These will be available when building the image and when the container is running.
+   * 
+   * @param envVars Environment variables. This can be a string, a list of strings, or a
+   * dictionary of strings. The string must be in the format of "KEY=VALUE". If a list of
+   * strings is provided, each element should be in the same format. Default is None.
+   * @param clear Clear existing environment variables before adding the new ones.
+   * @returns The image instance.
+   */
   withEnvs(envVars: string[] | Record<string, string> | string, clear: boolean = false): Image {
     let envList: string[];
 
@@ -384,11 +429,23 @@ export class Image {
     return this;
   }
 
+  /**
+   * Add secrets stored in the platform to the build environment.
+   * 
+   * @param secrets The secrets to add.
+   * @returns The image instance.
+   */
   withSecrets(secrets: string[]): Image {
     this.secrets.push(...secrets);
     return this;
   }
 
+  /**
+   * Build the image on a GPU node.
+   * 
+   * @param gpu The GPU type to use.
+   * @returns The image instance.
+   */
   buildWithGpu(gpu: GpuType): Image {
     this.gpu = gpu;
     return this;
