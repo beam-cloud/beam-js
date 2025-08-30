@@ -66,3 +66,5 @@ export default class BeamClient {
     return new URLSearchParams(camelCaseToSnakeCaseKeys(opts));
   }
 }
+
+export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from './sync';

@@ -30,7 +30,7 @@ export class Images extends APIResource<Image, ImageData> {
     
     const response = await this.request<any>({
       method: "POST",
-      url: "/api/v1/grpc-gateway/images/build",
+      url: "/api/v1/gateway/images/build",
       data: apiRequest,
       responseType: "stream",
     });
@@ -86,7 +86,7 @@ export class Images extends APIResource<Image, ImageData> {
     
     const response = await this.request<{ data: VerifyImageBuildResponse }>({
       method: "POST",
-      url: "/api/v1/grpc-gateway/images/verify-build",
+      url: "/api/v1/gateway/images/verify-build",
       data: apiRequest,
     });
 
@@ -168,15 +168,22 @@ export class Image {
     return image;
   }
 
-  static fromDockerfile(manager: Images, dockerfilePath: string, contextDir?: string): Image {
+  static async fromDockerfile(manager: Images, dockerfilePath: string, contextDir?: string): Promise<Image> {
     const image = new Image(manager);
     
     if (!contextDir) {
       contextDir = path.dirname(dockerfilePath);
     }
 
-    // TODO: Implement file syncing
-    // image.syncFiles(contextDir);
+    try {
+      // Sync files to get build context object ID
+      console.log(`Syncing build context from: ${contextDir}`);
+      const objectId = await image.syncFiles(contextDir);
+      image.buildCtxObject = objectId;
+      console.log(`Build context synced with object ID: ${objectId}`);
+    } catch (error) {
+      throw new Error(`Failed to sync build context: ${error}`);
+    }
 
     try {
       const dockerfile = fs.readFileSync(dockerfilePath, "utf8");
@@ -452,11 +459,18 @@ export class Image {
   }
 
   /**
-   * Sync files placeholder
+   * Sync files using FileSyncer
    */
-  syncFiles(contextDir?: string, cacheObjectId: boolean = true): void {
-    // The Python version uses a FileSyncer class that uploads files to the platform
-    console.log(`Would sync files from ${contextDir || "./"} with cache=${cacheObjectId}`);
+  async syncFiles(contextDir?: string, cacheObjectId: boolean = true): Promise<string> {
+    const { FileSyncer } = await import('../sync');
+    const syncer = new FileSyncer(this.manager.client, contextDir || "./");
+    const result = await syncer.sync([], [], cacheObjectId);
+    
+    if (!result.success) {
+      throw new Error('File sync failed');
+    }
+    
+    return result.object_id;
   }
 
   getCredentialsFromEnv(): Record<string, string> {

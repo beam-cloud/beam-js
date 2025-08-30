@@ -13,6 +13,8 @@
     "prepublishOnly": "echo 'to publish, run yarn build && (cd dist; yarn publish)' && exit 1"
   },
   "dependencies": {
+    "@types/archiver": "^6.0.3",
+    "archiver": "^7.0.1",
     "axios": "^1.7.7",
     "commander": "^12.1.0",
     "ws": "^8.18.0"
