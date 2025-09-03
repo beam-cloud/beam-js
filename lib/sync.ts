@@ -278,15 +278,12 @@ export class FileSyncer {
 
     console.log(`Archiving ${totalFiles} files...`);
 
-    // Add files to archive using streaming (memory efficient)
     for (const filePath of allFiles) {
       try {
         const relativePath = relative(this.rootDir, filePath);
         const stats = statSync(filePath);
         
         if (stats.isFile()) {
-          // Stream files instead of loading into memory
-          // This preserves file timestamps and permissions
           archive.file(filePath, { 
             name: relativePath,
             date: stats.mtime // Preserve modification time
