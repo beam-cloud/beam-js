@@ -23,5 +23,7 @@ export enum EStubType {
   ASGIServe = "asgi/serve",
   ScheduledJob = "schedule",
   ScheduledJobDeployment = "schedule/deployment",
+  PodDeployment = "pod/deployment",
+  PodRun = "pod/run",
   Unknown = "unknown",
 }

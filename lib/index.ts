@@ -2,6 +2,7 @@ import axios, { Axios, AxiosRequestConfig } from "axios";
 import { Deployments } from "./resources/deployment";
 import { Tasks } from "./resources/task";
 import { Images } from "./resources/image";
+import { Pods } from "./resources/pod";
 import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
@@ -22,6 +23,7 @@ export default class BeamClient {
   deployments: Deployments = new Deployments(this);
   tasks: Tasks = new Tasks(this);
   images: Images = new Images(this);
+  pods: Pods = new Pods(this);
 
   public constructor(opts: BeamClientOpts) {
     this.opts = {
@@ -68,3 +70,19 @@ export default class BeamClient {
 }
 
 export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from './sync';
+
+// Export Pod classes and types
+export { Pod, Pods, PodInstance } from './resources/pod';
+export { 
+  PodData, 
+  PodConfig, 
+  PodInstanceData,
+  CreatePodRequest, 
+  CreatePodResponse, 
+  StopPodRequest,
+  StopPodResponse,
+  EPodStatus,
+  PodVolume,
+  CloudBucket,
+  GpuType
+} from './types/pod';
