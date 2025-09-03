@@ -1,6 +1,20 @@
 import BaseData from "./base";
 
-export type GpuType = "NoGPU" | "T4" | "A10G" | "A100" | "H100" | string;
+export const GpuType = {
+  NoGPU: "",
+  Any: "any",
+  T4: "T4",
+  L4: "L4",
+  A10G: "A10G",
+  A100_40: "A100-40",
+  A100_80: "A100-80",
+  H100: "H100",
+  A6000: "A6000",
+  RTX4090: "RTX4090",
+  L40S: "L40S",
+} as const;
+
+export type GpuType = typeof GpuType[keyof typeof GpuType];
 
 export type PythonVersion = 
   | "python3"
