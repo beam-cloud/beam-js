@@ -438,7 +438,6 @@ export class FileSyncer {
 
     try {
       const headResponse = await this.headObject(hash);
-      console.log("headResponse", headResponse);
       
       if (!headResponse.exists) {
         const metadata: ObjectMetadata = { name: hash, size };
@@ -454,7 +453,6 @@ export class FileSyncer {
           });
 
           if (createResponse.ok) {
-            console.log("createResponse", createResponse);
             const uploadSuccess = await this.uploadToPresignedUrl(createResponse.presignedUrl, tempZipPath);
             
             if (uploadSuccess) {

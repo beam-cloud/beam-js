@@ -41,7 +41,7 @@ export class Images extends APIResource<Image, ImageData> {
   private _transformRequestToSnakeCase(request: BuildImageRequest): any {
     const transformed = camelCaseToSnakeCaseKeys(request);
     
-    if (transformed.gpu === "NoGPU" || transformed.gpu === "") {
+    if (transformed.gpu === GpuType.NoGPU) {
       delete transformed.gpu;
     }
     
@@ -54,7 +54,6 @@ export class Images extends APIResource<Image, ImageData> {
     
     for await (const chunk of stream) {
       buffer += chunk.toString();
-      console.log("Build progress:", chunk.toString());
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
       
@@ -96,7 +95,7 @@ export class Images extends APIResource<Image, ImageData> {
   private _transformVerifyRequestToSnakeCase(request: VerifyImageBuildRequest): any {
     const transformed = camelCaseToSnakeCaseKeys(request);
     
-    if (transformed.gpu === "NoGPU" || transformed.gpu === "") {
+    if (transformed.gpu === GpuType.NoGPU) {
       delete transformed.gpu;
     }
     
@@ -137,7 +136,7 @@ export class Image {
     this.secrets = data?.secrets || [];
     this.dockerfile = data?.dockerfile || "";
     this.buildCtxObject = data?.buildCtxObject || "";
-    this.gpu = data?.gpu || "NoGPU";
+    this.gpu = data?.gpu || GpuType.NoGPU;
     this.ignorePython = data?.ignorePython || false;
     this.snapshotId = data?.snapshotId || "";
     this.includeFilesPatterns = data?.includeFilesPatterns || [];
@@ -294,7 +293,7 @@ export class Image {
       return { success: false };
     }
 
-    console.log("Build complete 🎉");
+    console.log("Build complete");
     return {
       success: true,
       imageId: lastResponse.imageId,
