@@ -299,41 +299,11 @@ export class Pod implements ResourceObject<PodData> {
   }
 
   public generateDeploymentArtifacts(options: Record<string, any> = {}): void {
-    // Generate deployment artifacts (similar to Python version)
-    const imports = ["Pod"];
-    
-    const podConfig = {
-      app: this.app,
-      entrypoint: this.entrypoint,
-      ports: this.ports,
-      name: this.name,
-      cpu: this.cpu,
-      memory: this.memory,
-      gpu: this.gpu,
-      gpu_count: this.gpu_count,
-      volumes: this.volumes,
-      secrets: this.secrets,
-      env: this.env,
-      keep_warm_seconds: this.keep_warm_seconds,
-      authorized: this.authorized,
-      tcp: this.tcp,
-      ...options,
-    };
-
-    const content = `
-import { ${imports.join(", ")} } from "@beam-cloud/beta9";
-
-const pod = new Pod(${JSON.stringify(podConfig, null, 2)});
-`;
-
-    // In a real implementation, you'd write this to a file
-    console.log(`Generated deployment artifact for pod-${this._id}.ts:`);
-    console.log(content);
+    // Not implemented
   }
 
   public cleanupDeploymentArtifacts(): void {
-    // Clean up deployment artifacts
-    console.log(`Cleaning up deployment artifacts for pod-${this._id}.ts`);
+    // Not implemented
   }
 }
 
