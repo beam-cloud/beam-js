@@ -3,6 +3,7 @@ import { Deployments } from "./resources/deployment";
 import { Tasks } from "./resources/task";
 import { Images } from "./resources/image";
 import { Pods } from "./resources/pod";
+import { Volumes } from "./resources/volume";
 import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
@@ -24,6 +25,7 @@ export default class BeamClient {
   tasks: Tasks = new Tasks(this);
   images: Images = new Images(this);
   pods: Pods = new Pods(this);
+  volumes: Volumes = new Volumes(this);
 
   public constructor(opts: BeamClientOpts) {
     this.opts = {
@@ -72,7 +74,7 @@ export default class BeamClient {
 export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from './sync';
 
 // Export Pod classes and types
-export { Pod, Pods, PodInstance } from './resources/pod';
+export { Pod, Pods, PodInstance, PodServiceStubImpl } from './resources/pod';
 export { 
   PodData, 
   PodConfig, 
@@ -81,8 +83,69 @@ export {
   CreatePodResponse, 
   StopPodRequest,
   StopPodResponse,
+  PodServiceStub,
   EPodStatus,
-  PodVolume,
-  CloudBucket,
-  GpuType
+  PodVolume
 } from './types/pod';
+
+// Export Image classes and types
+export { Image, Images } from './resources/image';
+export { ImageConfig, ImageData } from './types/image';
+
+// Export Volume classes and types
+export { Volume, Volumes, CloudBucket } from './resources/volume';
+export { 
+  VolumeData, 
+  VolumeGateway, 
+  CloudBucketConfig, 
+  VolumeConfigGateway,
+  GetOrCreateVolumeRequest,
+  GetOrCreateVolumeResponse
+} from './types/volume';
+
+// Export Runner classes and types
+export { RunnerAbstraction, AbstractCallableWrapper } from './resources/runner';
+
+// Export supporting types
+export { Autoscaler, QueueDepthAutoscaler } from './types/autoscaler';
+export { TaskPolicy } from './types/task';
+export { PricingPolicy, PricingPolicyCostModel } from './types/pricing';
+export { Schema, SchemaField } from './types/schema';
+
+// Export common types
+export {
+  LifeCycleMethod,
+  TaskStatus,
+  TaskStatusHelper,
+  TaskExitCode,
+  PythonVersion,
+  PythonVersionAlias,
+  GpuType,
+  GpuTypeAlias,
+} from './types/common';
+
+// Export stub types and constants
+export {
+  CONTAINER_STUB_TYPE,
+  FUNCTION_STUB_TYPE,
+  TASKQUEUE_STUB_TYPE,
+  ENDPOINT_STUB_TYPE,
+  ASGI_STUB_TYPE,
+  SCHEDULE_STUB_TYPE,
+  BOT_STUB_TYPE,
+  SHELL_STUB_TYPE,
+  TASKQUEUE_DEPLOYMENT_STUB_TYPE,
+  ENDPOINT_DEPLOYMENT_STUB_TYPE,
+  ASGI_DEPLOYMENT_STUB_TYPE,
+  FUNCTION_DEPLOYMENT_STUB_TYPE,
+  SCHEDULE_DEPLOYMENT_STUB_TYPE,
+  BOT_DEPLOYMENT_STUB_TYPE,
+  TASKQUEUE_SERVE_STUB_TYPE,
+  ENDPOINT_SERVE_STUB_TYPE,
+  ASGI_SERVE_STUB_TYPE,
+  FUNCTION_SERVE_STUB_TYPE,
+  BOT_SERVE_STUB_TYPE,
+  POD_DEPLOYMENT_STUB_TYPE,
+  POD_RUN_STUB_TYPE,
+  SANDBOX_STUB_TYPE,
+} from './types/stub';

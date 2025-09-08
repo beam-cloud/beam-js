@@ -7,9 +7,29 @@ import {
   CreatePodResponse, 
   StopPodRequest,
   StopPodResponse,
-  PodInstanceData
+  PodInstanceData,
+  PodServiceStub
 } from "../types/pod";
 import { GpuType } from "../types/image";
+import { RunnerAbstraction } from "./runner";
+import { POD_RUN_STUB_TYPE } from "../types/stub";
+
+// PodServiceStub implementation that matches Python's PodServiceStub pattern
+export class PodServiceStubImpl implements PodServiceStub {
+  private pods: Pods;
+
+  constructor(pods: Pods) {
+    this.pods = pods;
+  }
+
+  public async createPod(request: CreatePodRequest): Promise<CreatePodResponse> {
+    return await this.pods.createPod(request);
+  }
+
+  public async stopPod(request: StopPodRequest): Promise<StopPodResponse> {
+    return await this.pods.stopPod(request);
+  }
+}
 
 export class Pods extends APIResource<Pod, PodData> {
   public object: string = "pod";
@@ -19,22 +39,22 @@ export class Pods extends APIResource<Pod, PodData> {
   }
 
   public async createPod(request: CreatePodRequest): Promise<CreatePodResponse> {
-    const response = await this.request<CreatePodResponse>({
+    const response = await this.request<{ data: CreatePodResponse }>({
       method: "POST",
       url: `api/v1/gateway/pods`,
       data: request,
     });
-    return response;
+    return response.data;
   }
 
   public async stopPod(request: StopPodRequest): Promise<StopPodResponse> {
     const { containerId } = request;
-    const response = await this.request<StopPodResponse>({
+    const response = await this.request<{ data: StopPodResponse }>({
       method: "POST",
       url: `api/v1/gateway/pods/${containerId}/kill`,
       data: {},
     });
-    return response;
+    return response.data;
   }
 }
 
@@ -61,7 +81,7 @@ export class Pod implements ResourceObject<PodData> {
 
   // Internal properties
   private _id: string;
-  public stub_id?: string;
+  private _pod_stub?: PodServiceStub | null;
 
   constructor(manager: Pods, data?: PodData, config?: PodConfig) {
     this.manager = manager;
@@ -75,10 +95,9 @@ export class Pod implements ResourceObject<PodData> {
     this.name = cfg.name;
     this.cpu = cfg.cpu || 1.0;
     this.memory = cfg.memory || 128;
-    this.gpu = cfg.gpu || "";
+    this.gpu = cfg.gpu || GpuType.NoGPU;
     this.gpu_count = cfg.gpu_count || 0;
-    // Initialize with a basic image instance - this will be properly set when needed
-    this.image = null as any;
+    this.image = cfg.image || null as any;
     this.volumes = cfg.volumes || [];
     this.secrets = cfg.secrets || [];
     this.env = cfg.env || {};
@@ -88,6 +107,19 @@ export class Pod implements ResourceObject<PodData> {
 
     // Generate temporary ID
     this._id = Math.random().toString(36).substring(2, 10);
+  }
+
+  // Getter for stub (matches Python's @property decorator)
+  public get stub(): PodServiceStub {
+    if (!this._pod_stub) {
+      this._pod_stub = new PodServiceStubImpl(this.manager);
+    }
+    return this._pod_stub;
+  }
+
+  // Setter for stub (matches Python's @stub.setter decorator)
+  public set stub(value: PodServiceStub) {
+    this._pod_stub = value;
   }
 
   public async refresh(): Promise<Pod> {
@@ -101,24 +133,79 @@ export class Pod implements ResourceObject<PodData> {
       this.entrypoint = entrypoint;
     }
 
-    if (!this.entrypoint.length && (!this.image?.data?.baseImage && !this.image?.data?.dockerfile)) {
+    let is_custom_image = this.image?.data?.baseImage || this.image?.data?.dockerfile
+
+    if (!this.entrypoint.length && !is_custom_image) {
       throw new Error("You must specify an entrypoint or provide a custom image.");
     }
 
-    if (!this.stub_id) {
-      throw new Error("You must specify a stub_id to create a pod.");
+    let ignore_patterns: string[] = [];
+    if (is_custom_image) {
+        ignore_patterns = ["**"];
     }
 
-    // Prepare the request - only stubId and snapshotId are supported
-    const request: CreatePodRequest = {
-      stubId: this.stub_id,
-    };
+    if (!is_custom_image && this.entrypoint) {
+        // TODO: Add user code dir
+        this.entrypoint = ["sh", "-c", `cd {USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
+    }
 
-    const response = await this.manager.createPod(request);
+    // Prepare runtime using RunnerAbstraction (mirrors Python's prepare_runtime flow)
+    const runner = new RunnerAbstraction({
+      name: this.name,
+      app: this.app,
+      cpu: this.cpu as number,
+      memory: this.memory as number,
+      gpu: this.gpu as any,
+      gpuCount: this.gpu_count,
+      volumes: this.volumes as any,
+      secrets: this.secrets,
+      env: this.env,
+      keepWarmSeconds: this.keep_warm_seconds,
+      authorized: this.authorized,
+      tcp: this.tcp,
+      ports: this.ports,
+      image: this.image,
+      entrypoint: this.entrypoint,
+    });
+
+    runner.setClient(this.manager.client);
+
+    const prepared = await runner.prepareRuntime(undefined, POD_RUN_STUB_TYPE, true, ignore_patterns);
+    console.log("Prepared", prepared);
+    if (!prepared) {
+      return new PodInstance({
+        containerId: "",
+        url: "",
+        ok: false,
+        errorMsg: "Failed to prepare runtime",
+      }, this.manager);
+    }
+
+    console.log("Creating container");
+    const request: CreatePodRequest = {
+      stubId: runner.stubId,
+    };
+    // console.log("Create pod request", request);
+    const response = await this.stub.createPod(request);
+    // console.log("Create pod response", response);
+    console.log("Response ok", response.ok);
+    let url = "";
+    if (response.ok) {
+      console.log(`Container created successfully ===> ${response.containerId}`);
+
+      if (this.keep_warm_seconds < 0) {
+        console.log("This container has no timeout, it will run until it completes.");
+      } else {
+        console.log(`This container will timeout after ${this.keep_warm_seconds} seconds.`);
+      }
+
+      const urlRes = await runner.printInvocationSnippet();
+      url = urlRes?.url || "";
+    }
 
     return new PodInstance({
       containerId: response.containerId,
-      url: "", // URL is not provided in the create response
+      url,
       ok: response.ok,
       errorMsg: response.errorMsg,
     }, this.manager);

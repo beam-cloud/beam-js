@@ -56,8 +56,8 @@ export interface CreatePodRequest {
 }
 
 export interface CreatePodResponse {
-  containerId: string;
   ok: boolean;
+  containerId: string;
   errorMsg?: string;
 }
 
@@ -69,6 +69,10 @@ export interface StopPodResponse {
   ok: boolean;
   errorMsg?: string;
 }
+export interface PodServiceStub {
+  createPod(request: CreatePodRequest): Promise<CreatePodResponse>;
+  stopPod(request: StopPodRequest): Promise<StopPodResponse>;
+}
 
 export interface PodConfig {
   app?: string;
@@ -79,6 +83,7 @@ export interface PodConfig {
   memory?: number | string;
   gpu?: GpuType | GpuType[];
   gpu_count?: number;
+  image?: any; // Will be properly typed as Image when imported
   volumes?: (PodVolume | CloudBucket)[];
   secrets?: string[];
   env?: Record<string, string>;

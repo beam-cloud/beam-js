@@ -1,33 +1,17 @@
 import BaseData from "./base";
+import { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias } from "./common";
 
-export const GpuType = {
-  NoGPU: "",
-  Any: "any",
-  T4: "T4",
-  L4: "L4",
-  A10G: "A10G",
-  A100_40: "A100-40",
-  A100_80: "A100-80",
-  H100: "H100",
-  A6000: "A6000",
-  RTX4090: "RTX4090",
-  L40S: "L40S",
-} as const;
+// Keep legacy compatibility for micromamba versions
+export type ExtendedPythonVersion = PythonVersion | 
+  "python3" |
+  "micromamba3.8" |
+  "micromamba3.9" |
+  "micromamba3.10" |
+  "micromamba3.11" |
+  "micromamba3.12";
 
-export type GpuType = typeof GpuType[keyof typeof GpuType];
-
-export type PythonVersion = 
-  | "python3"
-  | "python3.8"
-  | "python3.9"
-  | "python3.10"
-  | "python3.11"
-  | "python3.12"
-  | "micromamba3.8"
-  | "micromamba3.9"
-  | "micromamba3.10"
-  | "micromamba3.11"
-  | "micromamba3.12";
+// Re-export for backwards compatibility
+export { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias };
 
 export interface BuildStep {
   type: "pip" | "shell" | "micromamba";
@@ -126,7 +110,7 @@ export interface ImageBuildResult {
 }
 
 export interface ImageConfig {
-  pythonVersion?: PythonVersion | string;
+  pythonVersion?: ExtendedPythonVersion | string;
   pythonPackages?: string[] | string;
   commands?: string[];
   baseImage?: string;

@@ -17,7 +17,7 @@ import {
 } from "../types/image";
 import { camelCaseToSnakeCaseKeys } from "../util";
 
-const DEFAULT_PYTHON_VERSION: PythonVersion = "python3.10";
+const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python310;
 export class Images extends APIResource<Image, ImageData> {
   public object: string = "image";
 
