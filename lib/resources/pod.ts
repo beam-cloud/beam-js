@@ -12,7 +12,8 @@ import {
 } from "../types/pod";
 import { GpuType } from "../types/image";
 import { RunnerAbstraction } from "./runner";
-import { POD_RUN_STUB_TYPE } from "../types/stub";
+import { POD_RUN_STUB_TYPE, POD_DEPLOYMENT_STUB_TYPE, DeployStubRequest, DeployStubResponse } from "../types/stub";
+import { camelCaseToSnakeCaseKeys } from "../util";
 
 // PodServiceStub implementation that matches Python's PodServiceStub pattern
 export class PodServiceStubImpl implements PodServiceStub {
@@ -214,26 +215,87 @@ export class Pod implements ResourceObject<PodData> {
   public async deploy(name?: string): Promise<{ deployment_details: Record<string, any>; success: boolean }> {
     this.name = name || this.name;
     if (!this.name) {
-      throw new Error("You must specify a name for deployment.");
+      console.error("You must specify an app name (either in the constructor or via the name argument).");
     }
 
-    if (!this.entrypoint.length && (!this.image?.data?.baseImage && !this.image?.data?.dockerfile)) {
-      throw new Error("You must specify an entrypoint or provide a custom image.");
+    const isCustomImage = !!(this.image?.data?.baseImage || this.image?.data?.dockerfile);
+
+    if (!this.entrypoint.length && !isCustomImage) {
+      console.error("You must specify an entrypoint.");
+      return { deployment_details: {}, success: false };
     }
 
-    // This would typically involve more complex deployment logic
-    // For now, we'll simulate the deployment process
-    const deploymentDetails = {
-      deployment_id: Math.random().toString(36).substring(2, 10),
-      deployment_name: this.name,
-      invoke_url: `https://${this.name}.beam.cloud`,
-      version: "1",
-    };
+    let ignorePatterns: string[] = [];
+    if (isCustomImage) {
+      ignorePatterns = ["**"];
+    }
 
-    return {
-      deployment_details: deploymentDetails,
-      success: true,
-    };
+    if (!isCustomImage && this.entrypoint && this.entrypoint.length > 0) {
+      this.entrypoint = ["sh", "-c", `cd {USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
+    }
+
+    const runner = new RunnerAbstraction({
+      name: this.name,
+      app: this.app,
+      cpu: this.cpu as number,
+      memory: this.memory as number,
+      gpu: this.gpu as any,
+      gpuCount: this.gpu_count,
+      volumes: this.volumes as any,
+      secrets: this.secrets,
+      env: this.env,
+      keepWarmSeconds: this.keep_warm_seconds,
+      authorized: this.authorized,
+      tcp: this.tcp,
+      ports: this.ports,
+      image: this.image,
+      entrypoint: this.entrypoint,
+    });
+
+    runner.setClient(this.manager.client);
+
+    const prepared = await runner.prepareRuntime(undefined, POD_DEPLOYMENT_STUB_TYPE, true, ignorePatterns);
+    if (!prepared) {
+      return { deployment_details: {}, success: false };
+    }
+
+    try {
+      const req: DeployStubRequest = {
+        stubId: (runner as any).stubId,
+        name: this.name || "",
+      };
+
+      console.log("Deploying");
+      const response = await this.manager.client.request({
+        method: "POST",
+        url: "/api/v1/gateway/stubs/deploy",
+        data: camelCaseToSnakeCaseKeys(req),
+      });
+
+      console.log("Deploy response", response);``
+      const deployRes: DeployStubResponse = response.data;
+
+      if (deployRes.ok) {
+        console.log("Deployed 🎉");
+        // Invokation details func
+        if ((this.ports?.length || 0) > 0) {
+          await runner.printInvocationSnippet();
+        }
+      }
+
+      return {
+        deployment_details: {
+          deployment_id: deployRes.deploymentId,
+          deployment_name: this.name,
+          invoke_url: deployRes.invokeUrl,
+          version: deployRes.version,
+        },
+        success: deployRes.ok,
+      };
+    } catch (error) {
+      console.error("Failed to deploy pod:", error);
+      return { deployment_details: {}, success: false };
+    }
   }
 
   public generateDeploymentArtifacts(options: Record<string, any> = {}): void {

@@ -120,3 +120,14 @@ export interface GetUrlResponse {
   url: string;
   errMsg?: string;
 }
+export interface DeployStubRequest {
+  stubId: string;
+  name: string;
+}
+
+export interface DeployStubResponse {
+  ok: boolean;
+  deploymentId: string;
+  version: number;
+  invokeUrl: string;
+}
