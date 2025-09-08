@@ -15,7 +15,6 @@ import { RunnerAbstraction } from "./runner";
 import { POD_RUN_STUB_TYPE, POD_DEPLOYMENT_STUB_TYPE, DeployStubRequest, DeployStubResponse } from "../types/stub";
 import { camelCaseToSnakeCaseKeys } from "../util";
 
-// PodServiceStub implementation that matches Python's PodServiceStub pattern
 export class PodServiceStubImpl implements PodServiceStub {
   private pods: Pods;
 
@@ -59,11 +58,44 @@ export class Pods extends APIResource<Pod, PodData> {
   }
 }
 
+/**
+ * Pod allows you to run arbitrary services in fast, scalable, and secure remote containers.
+ *
+ * Parameters in `config`:
+ * - `app` (string): Assign the pod to an app. If the app does not exist, it will be created with the given name.
+ *   An app is a group of resources (endpoints, task queues, functions, etc).
+ * - `entrypoint` (string[]): The command to run in the container. Default is []
+ * - `ports` (number[]): The ports to expose on the container. Default is []
+ * - `name` (string | undefined): Optional app name for this pod. If not specified, it will typically default to the
+ *   working directory name in the Python SDK; here it is user-provided.
+ * - `cpu` (number | string): Number of CPU cores allocated to the pod. Default is 1.0
+ * - `memory` (number | string): Memory allocated to the pod. Accepts MiB as number, or string with units (e.g. "1Gi"). Default is 128 MiB
+ * - `gpu` (GpuType | GpuType[]): The type or name of GPU device(s) to use. If multiple are supplied, the scheduler may prioritize based on order
+ * - `gpu_count` (number): Number of GPUs allocated to the pod. Default is 0. If a GPU is specified but this value is 0, it will be treated as 1
+ * - `image` (Image): Container image used for execution
+ * - `volumes` (any[]): Volumes and/or cloud buckets to mount to the pod
+ * - `secrets` (string[]): Secrets injected as environment variables
+ * - `env` (Record<string,string>): Environment variables to inject into the container
+ * - `keep_warm_seconds` (number): Seconds to keep the container up after the last request. -1 means never scale down to zero. Default is 600
+ * - `authorized` (boolean): If false, allows the pod to be accessed without an auth token. Default is false
+ * - `tcp` (boolean): Enable raw TCP access when applicable. Default is false
+ *
+ * Example usage:
+ * ```ts
+ * // Assuming you have a `Pods` manager instance
+ * import { Image } from "beam-js";
+ *
+ * const image = new Image();
+ * const pod = new Pod(podsManager, undefined, { cpu: 2, memory: 512, image, ports: [8080] });
+ * const result = await pod.create(["node", "-e", "console.log('Hello, World!')"]);
+ * console.log(result.containerId);
+ * console.log(result.url);
+ * ```
+ */
 export class Pod implements ResourceObject<PodData> {
   public data: PodData;
   public manager: Pods;
 
-  // Configuration properties
   public app: string;
   public entrypoint: string[];
   public ports: number[];
@@ -80,10 +112,16 @@ export class Pod implements ResourceObject<PodData> {
   public authorized: boolean;
   public tcp: boolean;
 
-  // Internal properties
   private _id: string;
   private _pod_stub?: PodServiceStub | null;
 
+  /**
+   * Create a new `Pod` resource instance.
+   *
+   * @param manager Manager responsible for API calls related to pods
+   * @param data Optional initial data for the resource
+   * @param config Optional configuration for the pod. See class description for available fields
+   */
   constructor(manager: Pods, data?: PodData, config?: PodConfig) {
     this.manager = manager;
     this.data = data || {} as PodData;
@@ -123,12 +161,22 @@ export class Pod implements ResourceObject<PodData> {
     this._pod_stub = value;
   }
 
+  /**
+   * Refresh this pod's data from the server.
+   * @returns The updated `Pod` instance.
+   */
   public async refresh(): Promise<Pod> {
     const data = await this.manager.get({ id: this.data.id });
     this.data = data.data;
     return this;
   }
 
+  /**
+   * Create a new container that will run until it completes normally or times out.
+   *
+   * @param entrypoint Command to run in the pod container (overrides the entrypoint specified in the constructor config)
+   * @returns A `PodInstance` representing the created container
+   */
   public async create(entrypoint?: string[]): Promise<PodInstance> {
     if (entrypoint) {
       this.entrypoint = entrypoint;
@@ -212,6 +260,18 @@ export class Pod implements ResourceObject<PodData> {
     }, this.manager);
   }
 
+  /**
+   * Deploy a pod.
+   *
+   * @param name Optional deployment name. If omitted, uses the pod's configured `name`
+   * @returns Deployment details and a success boolean
+   *
+   * @example
+   * ```ts
+   * const pod = new Pod(podsManager, undefined, { cpu: 1.0, memory: 128, image: new Image(), keep_warm_seconds: 1000 });
+   * const { deployment_details, success } = await pod.deploy("my-pod");
+   * ```
+   */
   public async deploy(name?: string): Promise<{ deployment_details: Record<string, any>; success: boolean }> {
     this.name = name || this.name;
     if (!this.name) {
@@ -322,6 +382,11 @@ export class PodInstance {
     this.manager = manager;
   }
 
+  /**
+   * Terminate the container associated with this pod instance.
+   *
+   * @returns True if the container was terminated; false otherwise
+   */
   public async terminate(): Promise<boolean> {
     const response = await this.manager.stopPod({
       containerId: this.containerId,
