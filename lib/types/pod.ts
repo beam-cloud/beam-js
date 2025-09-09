@@ -91,3 +91,209 @@ export interface PodConfig {
   authorized?: boolean;
   tcp?: boolean;
 }
+
+export interface PodSandboxExecRequest {
+  containerId: string;
+  command: string[];
+  cwd: string;
+  env: Record<string, string>;
+}
+
+export interface PodSandboxExecResponse {
+  ok: boolean;
+  errorMsg?: string;
+  pid: number;
+}
+export interface PodSandboxStatusRequest {
+  containerId: string;
+  pid: number;
+}
+
+export interface PodSandboxStatusResponse {
+  ok: boolean;
+  errorMsg?: string;
+  status: string;
+  exitCode: number;
+}
+
+export interface PodSandboxStdoutRequest {
+  containerId: string;
+  pid: number;
+}
+
+export interface PodSandboxStdoutResponse {
+  ok: boolean;
+  errorMsg?: string;
+  stdout: string;
+}
+
+export interface PodSandboxStderrRequest {
+  containerId: string;
+  pid: number;
+}
+
+export interface PodSandboxStderrResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
+export interface PodSandboxKillRequest {
+  containerId: string;
+  pid: number;
+}
+
+export interface PodSandboxKillResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
+export interface PodSandboxListProcessesRequest {
+  containerId: string;
+}
+
+export interface PodSandboxListProcessesResponse {
+  ok: boolean;
+  errorMsg: string;
+  pids: number[];
+}
+
+export interface PodSandboxUploadFileRequest {
+  containerId: string;
+  containerPath: string;
+}
+
+export interface PodSandboxUploadFileResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
+export interface PodSandboxDownloadFileRequest {
+  containerId: string;
+  containerPath: string;
+}
+
+export interface PodSandboxDownloadFileResponse {
+  ok: boolean;
+  errorMsg: string;
+  data: Buffer; // ToDo: Double check this
+}
+
+export interface PodSandboxDeleteFileRequest {
+  containerId: string;
+  containerPath: string;
+}
+
+export interface PodSandboxDeleteFileResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
+export interface PodSandboxCreateDirectoryRequest {
+  containerId: string;
+  containerPath: string;
+  mode: number;
+}
+
+export interface PodSandboxCreateDirectoryResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
+export interface PodSandboxDeleteDirectoryRequest {
+  containerId: string;
+  containerPath: string;
+}
+
+export interface PodSandboxStatFileRequest {
+  containerId: string;
+  containerPath: string;
+}
+
+export interface PodSandboxStatFileResponse {
+  ok: boolean;
+  errorMsg: string;
+  fileInfo: PodSandboxFileInfo;
+}
+
+export interface PodSandboxFileInfo {
+  mode: number;
+  size: number;
+  modTime: number;
+  owner: string;
+  group: string;
+  isDir: boolean;
+  name: string;
+  permissions: number;
+}
+
+export interface PodSandboxReplaceInFilesRequest {
+  containerId: string;
+  containerPath: string;
+  pattern: string;
+  newString: string;
+}
+
+export interface PodSandboxReplaceInFilesResponse {
+  ok: boolean;
+  url: string;
+  errorMsg: string;
+}
+
+export interface PodSandboxExposePortRequest {
+  containerId: string;
+  stubId: string;
+  port: number;
+}
+
+export interface PodSandboxExposePortResponse {
+  ok: boolean;
+  url: string;
+  errorMsg: string;
+}
+
+// No unexpose port request?
+
+export interface PodSandboxFindInFilesRequest {
+  containerId: string;
+  containerPath: string;
+  pattern: string;
+}
+
+export interface PodSandboxFindInFilesResponse {
+  ok: boolean;
+  errorMsg: string;
+  results: string; // ToDo: Add filesearchresult type
+}
+
+export interface PodSandboxConnectRequest {
+  containerId: string;
+}
+
+export interface PodSandboxConnectResponse {
+  ok: boolean;
+  errorMsg: string;
+  stubId: string;
+}
+
+export interface PodSandboxUpdateTtlRequest {
+  containerId: string;
+  ttl: number;
+}
+
+export interface PodSandboxUpdateTtlResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
+export interface PodSandboxSnapshotRequest {
+  stubId: string;
+  containerId: string;
+}
+
+export interface PodSandboxSnapshotResponse {
+  ok: boolean;
+  errorMsg: string;
+  snapshotId: string;
+}
+
+// Store requests here?
