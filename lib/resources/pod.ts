@@ -198,7 +198,6 @@ export class Pod implements ResourceObject<PodData> {
         this.entrypoint = ["sh", "-c", `cd {USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
     }
 
-    // Prepare runtime using RunnerAbstraction (mirrors Python's prepare_runtime flow)
     const runner = new RunnerAbstraction({
       name: this.name,
       app: this.app,
