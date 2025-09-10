@@ -15,6 +15,8 @@ import { RunnerAbstraction } from "./runner";
 import { POD_RUN_STUB_TYPE, POD_DEPLOYMENT_STUB_TYPE, DeployStubRequest, DeployStubResponse } from "../types/stub";
 import { camelCaseToSnakeCaseKeys } from "../util";
 
+// TODO: Temp fix until common.py is implemented
+let USER_CODE_DIR = "/mnt/code";
 export class PodServiceStubImpl implements PodServiceStub {
   private pods: Pods;
 
@@ -195,7 +197,7 @@ export class Pod implements ResourceObject<PodData> {
 
     if (!is_custom_image && this.entrypoint) {
         // TODO: Add user code dir
-        this.entrypoint = ["sh", "-c", `cd {USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
+        this.entrypoint = ["sh", "-c", `cd ${USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
     }
 
     const runner = new RunnerAbstraction({
@@ -290,7 +292,7 @@ export class Pod implements ResourceObject<PodData> {
     }
 
     if (!isCustomImage && this.entrypoint && this.entrypoint.length > 0) {
-      this.entrypoint = ["sh", "-c", `cd {USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
+      this.entrypoint = ["sh", "-c", `cd ${USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
     }
 
     const runner = new RunnerAbstraction({

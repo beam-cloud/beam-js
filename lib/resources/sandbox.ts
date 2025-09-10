@@ -134,7 +134,7 @@ export class Sandbox extends Pod {
    *
    * Returns: SandboxInstance - A new sandbox instance ready for use.
    */
-  public async create(entrypoint?: string[]): Promise<PodInstance> {
+  public async create(entrypoint?: string[]): Promise<SandboxInstance> {
     this.entrypoint = ["tail", "-f", "/dev/null"];
     if (entrypoint && entrypoint.length) {
       this.entrypoint = entrypoint;
