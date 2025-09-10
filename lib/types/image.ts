@@ -101,8 +101,6 @@ export interface VerifyImageBuildResponse {
   valid?: boolean;
   exists?: boolean;
 }
-
-// TODO: Update this to match the actual response
 export interface ImageBuildResult {
   success: boolean;
   imageId?: string;

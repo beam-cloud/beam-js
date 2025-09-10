@@ -83,7 +83,7 @@ export interface PodConfig {
   memory?: number | string;
   gpu?: GpuType | GpuType[];
   gpu_count?: number;
-  image?: any; // Will be properly typed as Image when imported
+  image?: any;
   volumes?: (PodVolume | CloudBucket)[];
   secrets?: string[];
   env?: Record<string, string>;
@@ -94,9 +94,9 @@ export interface PodConfig {
 
 export interface PodSandboxExecRequest {
   containerId: string;
-  command: string[];
-  cwd: string;
-  env: Record<string, string>;
+  command: string;
+  cwd?: string;
+  env?: Record<string, string>;
 }
 
 export interface PodSandboxExecResponse {
@@ -134,7 +134,8 @@ export interface PodSandboxStderrRequest {
 
 export interface PodSandboxStderrResponse {
   ok: boolean;
-  errorMsg: string;
+  errorMsg?: string;
+  stderr: string;
 }
 
 export interface PodSandboxKillRequest {
@@ -160,6 +161,8 @@ export interface PodSandboxListProcessesResponse {
 export interface PodSandboxUploadFileRequest {
   containerId: string;
   containerPath: string;
+  mode: number;
+  data: string;
 }
 
 export interface PodSandboxUploadFileResponse {
@@ -175,7 +178,7 @@ export interface PodSandboxDownloadFileRequest {
 export interface PodSandboxDownloadFileResponse {
   ok: boolean;
   errorMsg: string;
-  data: Buffer; // ToDo: Double check this
+  data: string;
 }
 
 export interface PodSandboxDeleteFileRequest {
@@ -235,7 +238,6 @@ export interface PodSandboxReplaceInFilesRequest {
 
 export interface PodSandboxReplaceInFilesResponse {
   ok: boolean;
-  url: string;
   errorMsg: string;
 }
 
@@ -262,7 +264,27 @@ export interface PodSandboxFindInFilesRequest {
 export interface PodSandboxFindInFilesResponse {
   ok: boolean;
   errorMsg: string;
-  results: string; // ToDo: Add filesearchresult type
+  results: FileSearchResult[];
+}
+
+export interface FileSearchPosition {
+  line: number;
+  column: number;
+}
+
+export interface FileSearchRange {
+  start: FileSearchPosition;
+  end: FileSearchPosition;
+}
+
+export interface FileSearchMatch {
+  range: FileSearchRange;
+  content: string;
+}
+
+export interface FileSearchResult {
+  path: string;
+  matches: FileSearchMatch[];
 }
 
 export interface PodSandboxConnectRequest {

@@ -302,24 +302,28 @@ export class SandboxInstance extends PodInstance {
  * Attributes:
  * - pid (number): The process ID of the executed command.
  * - exit_code (number): The exit code of the process (0 typically indicates success).
- * - stdout (SandboxProcessStream): Stream containing the standard output.
- * - stderr (SandboxProcessStream): Stream containing the standard error output.
+ * - stdout (string): The full standard output captured for the process.
+ * - stderr (string): The full standard error output captured for the process.
  * - result (string): Combined stdout and stderr output as a string.
  */
 export class SandboxProcessResponse {
   public pid: number;
   public exit_code: number;
+  public stdout: string;
+  public stderr: string;
   public result: string;
 
   constructor(
     pid: number,
     exit_code: number,
-    stdout: SandboxProcessStream,
-    stderr: SandboxProcessStream
+    stdout: string,
+    stderr: string
   ) {
     this.pid = pid;
     this.exit_code = exit_code;
-    this.result = stdout.read() + stderr.read();
+    this.stdout = stdout;
+    this.stderr = stderr;
+    this.result = stdout + stderr;
   }
 }
 
@@ -356,7 +360,11 @@ export class SandboxProcessManager {
     const process = await this._exec(["python3", "-c", code], { cwd, env });
     if (blocking) {
       await process.wait();
-      return new SandboxProcessResponse(process.pid, process.exit_code, process.stdout, process.stderr);
+      const [stdoutStr, stderrStr] = await Promise.all([
+        process.stdout.readAll(),
+        process.stderr.readAll(),
+      ]);
+      return new SandboxProcessResponse(process.pid, process.exit_code, stdoutStr, stderrStr);
     }
     return process;
   }
@@ -481,6 +489,23 @@ export class SandboxProcessStream {
     // Intentionally non-async; best-effort immediate read
     return data;
   }
+
+  /**
+   * Fetch and return all available output at this moment.
+   */
+  public async readAll(): Promise<string> {
+    let data = this._buffer;
+    this._buffer = "";
+    while (true) {
+      const chunk = await this._fetch_next_chunk();
+      if (chunk) {
+        data += chunk;
+      } else {
+        break;
+      }
+    }
+    return data;
+  }
 }
 
 /**
@@ -557,6 +582,7 @@ export class SandboxProcess {
       return data.stderr || "";
     });
   }
+
 
   /** Returns a combined stream of both stdout and stderr. */
   public get logs() {
