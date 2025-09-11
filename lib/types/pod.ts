@@ -69,10 +69,6 @@ export interface StopPodResponse {
   ok: boolean;
   errorMsg?: string;
 }
-export interface PodServiceStub {
-  createPod(request: CreatePodRequest): Promise<CreatePodResponse>;
-  stopPod(request: StopPodRequest): Promise<StopPodResponse>;
-}
 
 export interface PodConfig {
   app?: string;
@@ -179,6 +175,17 @@ export interface PodSandboxDownloadFileResponse {
   ok: boolean;
   errorMsg: string;
   data: string;
+}
+
+export interface PodSandboxListFilesRequest {
+  containerId: string;
+  containerPath: string;
+}
+
+export interface PodSandboxListFilesResponse {
+  ok: boolean;
+  errorMsg: string;
+  files: PodSandboxFileInfo[];
 }
 
 export interface PodSandboxDeleteFileRequest {

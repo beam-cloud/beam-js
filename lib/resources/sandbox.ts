@@ -2,14 +2,15 @@ import * as fs from "fs";
 import { Pod, Pods, PodInstance } from "./pod";
 import { Image } from "./image";
 import { RunnerAbstraction } from "./runner";
-import { SANDBOX_STUB_TYPE } from "../types/stub";
+import { EStubType } from "../types/stub";
+import type { PodConfig, PodSandboxSnapshotResponse, PodSandboxUpdateTtlResponse, PodSandboxExposePortResponse, PodSandboxExecResponse, PodSandboxListFilesResponse, PodSandboxCreateDirectoryResponse, PodInstanceData } from "../types/pod";
 
 /** Error thrown when connecting to a sandbox fails. */
-export class SandboxConnectionError extends Error {}
+export class SandboxConnectionError extends Error { }
 /** Error thrown for sandbox filesystem operations. */
-export class SandboxFileSystemError extends Error {}
+export class SandboxFileSystemError extends Error { }
 /** Error thrown for sandbox process operations. */
-export class SandboxProcessError extends Error {}
+export class SandboxProcessError extends Error { }
 
 function shellQuote(arg: string): string {
   if (arg === "") return "''";
@@ -42,7 +43,7 @@ export class Sandbox extends Pod {
   public debugBuffer: string = "";
   public syncLocalDir: boolean = false;
 
-  constructor(manager: Pods, data?: any, config?: any & { sync_local_dir?: boolean }) {
+  constructor(manager: Pods, data?: any, config?: PodConfig & { sync_local_dir?: boolean }) {
     super(manager, data, config);
     this.syncLocalDir = !!config?.sync_local_dir;
   }
@@ -81,7 +82,7 @@ export class Sandbox extends Pod {
     }
 
     return new SandboxInstance(
-      { containerId: id, ok: true, errorMsg: "", stubId: data.stubId || "" },
+      { containerId: id, url: "", ok: true, errorMsg: "", stubId: data.stubId || "" },
       this.manager
     );
   }
@@ -109,7 +110,7 @@ export class Sandbox extends Pod {
     const body = createResp.data as { ok: boolean; containerId: string; errorMsg?: string };
 
     if (!body.ok) {
-      return new SandboxInstance({ stubId, containerId: "", ok: false, errorMsg: body.errorMsg || "" }, this.manager);
+      return new SandboxInstance({ stubId, containerId: "", url: "", ok: false, errorMsg: body.errorMsg || "" }, this.manager);
     }
 
     // eslint-disable-next-line no-console
@@ -123,7 +124,7 @@ export class Sandbox extends Pod {
       console.log(`This sandbox will timeout after ${this.keep_warm_seconds} seconds.`);
     }
 
-    return new SandboxInstance({ stubId, containerId: body.containerId, ok: body.ok, errorMsg: body.errorMsg || "" }, this.manager);
+    return new SandboxInstance({ stubId, containerId: body.containerId, url: "", ok: body.ok, errorMsg: body.errorMsg || "" }, this.manager);
   }
 
   /**
@@ -162,9 +163,9 @@ export class Sandbox extends Pod {
 
     runner.setClient(this.manager.client);
 
-    const prepared = await runner.prepareRuntime(undefined, SANDBOX_STUB_TYPE, true, ignorePatterns);
+    const prepared = await runner.prepareRuntime(undefined, EStubType.Sandbox, true, ignorePatterns);
     if (!prepared) {
-      return new SandboxInstance({ containerId: "", ok: false, errorMsg: "Failed to prepare runtime", stubId: "" }, this.manager);
+      return new SandboxInstance({ containerId: "", url: "", ok: false, errorMsg: "Failed to prepare runtime", stubId: "" }, this.manager);
     }
 
     // eslint-disable-next-line no-console
@@ -178,7 +179,7 @@ export class Sandbox extends Pod {
     const body = createResp.data as { ok: boolean; containerId: string; errorMsg?: string };
 
     if (!body.ok) {
-      return new SandboxInstance({ stubId: (runner as any).stubId, containerId: "", ok: false, errorMsg: body.errorMsg || "" }, this.manager);
+      return new SandboxInstance({ stubId: (runner as any).stubId, containerId: "", url: "", ok: false, errorMsg: body.errorMsg || "" }, this.manager);
     }
 
     // eslint-disable-next-line no-console
@@ -215,8 +216,8 @@ export class SandboxInstance extends PodInstance {
   public process: SandboxProcessManager;
   public terminated: boolean = false;
 
-  constructor(data: { containerId: string; stubId: string; ok?: boolean; errorMsg?: string; url?: string }, manager: Pods) {
-    super({ containerId: data.containerId, url: data.url || "", ok: !!data.ok, errorMsg: data.errorMsg }, manager);
+  constructor(data: { stubId: string } & PodInstanceData, manager: Pods) {
+    super(data, manager);
     this.stubId = data.stubId;
     this.pods = manager;
     this.fs = new SandboxFileSystem(this);
@@ -250,12 +251,12 @@ export class SandboxInstance extends PodInstance {
 
     const resp = await this.pods.client.request({
       method: "POST",
-      url: `api/v1/gateway/pods/${this.containerId}/snapshot`,
+      url: `/api/v1/gateway/pods/${this.containerId}/snapshot`,
       data: { stubId: this.stubId },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string; snapshotId?: string };
+    const data = resp.data as PodSandboxSnapshotResponse;
     if (!data.ok) throw new SandboxProcessError(data.errorMsg || "Failed to snapshot");
-    return data.snapshotId || "";
+    return data.snapshotId;
   }
 
   /** Get the ID of the sandbox. */
@@ -271,10 +272,10 @@ export class SandboxInstance extends PodInstance {
   public async update_ttl(ttl: number): Promise<void> {
     const resp = await this.pods.client.request({
       method: "PATCH",
-      url: `api/v1/gateway/pods/${this.containerId}/ttl`,
+      url: `/api/v1/gateway/pods/${this.containerId}/ttl`,
       data: { ttl },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string };
+    const data = resp.data as PodSandboxUpdateTtlResponse;
     if (!data.ok) throw new SandboxProcessError(data.errorMsg || "Failed to update TTL");
   }
 
@@ -284,10 +285,10 @@ export class SandboxInstance extends PodInstance {
   public async expose_port(port: number): Promise<string> {
     const resp = await this.pods.client.request({
       method: "POST",
-      url: `api/v1/gateway/pods/${this.containerId}/ports/expose`,
+      url: `/api/v1/gateway/pods/${this.containerId}/ports/expose`,
       data: { stubId: this.stubId, port },
     });
-    const data = resp.data as { ok: boolean; url?: string; errorMsg?: string };
+    const data = resp.data as PodSandboxExposePortResponse;
     if (data.ok && data.url) return data.url;
     throw new SandboxProcessError(data.errorMsg || "Failed to expose port");
   }
@@ -385,14 +386,14 @@ export class SandboxProcessManager {
 
     const resp = await this.sandbox_instance.pods.client.request({
       method: "POST",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/exec`,
+      url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/exec`,
       data: {
         command: shellCommand,
         cwd: opts?.cwd,
         env: opts?.env,
       },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string; pid?: number };
+    const data = resp.data as PodSandboxExecResponse;
     if (!data.ok || !data.pid || data.pid <= 0) {
       throw new SandboxProcessError(data.errorMsg || "Failed to start process");
     }
@@ -688,13 +689,13 @@ export class SandboxFileInfo {
 }
 
 /** A position in a file. */
-export class SandboxFilePosition { constructor(public line: number, public column: number) {} }
+export class SandboxFilePosition { constructor(public line: number, public column: number) { } }
 /** A range in a file. */
-export class SandboxFileSearchRange { constructor(public start: SandboxFilePosition, public end: SandboxFilePosition) {} }
+export class SandboxFileSearchRange { constructor(public start: SandboxFilePosition, public end: SandboxFilePosition) { } }
 /** A match in a file. */
-export class SandboxFileSearchMatch { constructor(public range: SandboxFileSearchRange, public content: string) {} }
+export class SandboxFileSearchMatch { constructor(public range: SandboxFileSearchRange, public content: string) { } }
 /** A search result in a file. */
-export class SandboxFileSearchResult { constructor(public path: string, public matches: SandboxFileSearchMatch[]) {} }
+export class SandboxFileSearchResult { constructor(public path: string, public matches: SandboxFileSearchMatch[]) { } }
 
 /**
  * File system interface for managing files within a sandbox.
@@ -758,10 +759,10 @@ export class SandboxFileSystem {
   public async list_files(sandbox_path: string): Promise<SandboxFileInfo[]> {
     const resp = await this.sandbox_instance.pods.client.request({
       method: "GET",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files`,
+      url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/files`,
       params: { containerPath: sandbox_path },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string; files?: any[] };
+    const data = resp.data as PodSandboxListFilesResponse;
     if (!data.ok || !data.files) throw new SandboxFileSystemError(data.errorMsg || "Failed to list files");
     return data.files.map((file: any) => new SandboxFileInfo({
       name: file.name,
@@ -779,10 +780,10 @@ export class SandboxFileSystem {
   public async create_directory(sandbox_path: string): Promise<void> {
     const resp = await this.sandbox_instance.pods.client.request({
       method: "POST",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/directories`,
+      url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/directories`,
       data: { containerPath: sandbox_path, mode: 0o755 },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string };
+    const data = resp.data as PodSandboxCreateDirectoryResponse;
     if (!data.ok) throw new SandboxFileSystemError(data.errorMsg || "Failed to create directory");
   }
 

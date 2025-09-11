@@ -28,13 +28,6 @@ export class TaskPolicy {
   }
 }
 
-// Proto interface for API requests
-export interface TaskPolicyProto {
-  maxRetries: number;
-  timeout: number;
-  ttl: number;
-}
-
 export interface TaskData extends BaseData {
   status: ETaskStatus;
   container_id: string;

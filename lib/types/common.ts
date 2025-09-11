@@ -4,7 +4,7 @@ export enum LifeCycleMethod {
 
 export enum TaskStatus {
   Complete = "COMPLETE",
-  Error = "ERROR", 
+  Error = "ERROR",
   Pending = "PENDING",
   Running = "RUNNING",
   Cancelled = "CANCELLED",
@@ -35,20 +35,22 @@ export class TaskExitCode {
 }
 
 export enum PythonVersion {
-  Python3 = "python3",
-  Python38 = "python3.8",
-  Python39 = "python3.9", 
+  Python39 = "python3.9",
   Python310 = "python3.10",
   Python311 = "python3.11",
   Python312 = "python3.12",
 }
 
 export type PythonVersionLiteral =
-  | "python3.8"
   | "python3.9"
   | "python3.10"
   | "python3.11"
-  | "python3.12";
+  | "python3.12"
+  | "micromamba3.8"
+  | "micromamba3.9"
+  | "micromamba3.10"
+  | "micromamba3.11"
+  | "micromamba3.12";
 
 export type PythonVersionAlias = PythonVersion | PythonVersionLiteral;
 
@@ -56,7 +58,7 @@ export enum GpuType {
   NoGPU = "",
   Any = "any",
   T4 = "T4",
-  L4 = "L4", 
+  L4 = "L4",
   A10G = "A10G",
   A100_40 = "A100-40",
   A100_80 = "A100-80",

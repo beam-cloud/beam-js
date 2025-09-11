@@ -1,37 +1,21 @@
 import APIResource, { ResourceObject } from "./base";
 import { Image } from "./image";
-import { 
-  PodData, 
-  PodConfig, 
-  CreatePodRequest, 
-  CreatePodResponse, 
+import {
+  PodData,
+  PodConfig,
+  CreatePodRequest,
+  CreatePodResponse,
   StopPodRequest,
   StopPodResponse,
   PodInstanceData,
-  PodServiceStub
 } from "../types/pod";
 import { GpuType } from "../types/image";
 import { RunnerAbstraction } from "./runner";
-import { POD_RUN_STUB_TYPE, POD_DEPLOYMENT_STUB_TYPE, DeployStubRequest, DeployStubResponse } from "../types/stub";
+import { EStubType, DeployStubRequest, DeployStubResponse } from "../types/stub";
 import { camelCaseToSnakeCaseKeys } from "../util";
 
 // TODO: Temp fix until common.py is implemented
 let USER_CODE_DIR = "/mnt/code";
-export class PodServiceStubImpl implements PodServiceStub {
-  private pods: Pods;
-
-  constructor(pods: Pods) {
-    this.pods = pods;
-  }
-
-  public async createPod(request: CreatePodRequest): Promise<CreatePodResponse> {
-    return await this.pods.createPod(request);
-  }
-
-  public async stopPod(request: StopPodRequest): Promise<StopPodResponse> {
-    return await this.pods.stopPod(request);
-  }
-}
 
 export class Pods extends APIResource<Pod, PodData> {
   public object: string = "pod";
@@ -43,7 +27,7 @@ export class Pods extends APIResource<Pod, PodData> {
   public async createPod(request: CreatePodRequest): Promise<CreatePodResponse> {
     const response = await this.request<{ data: CreatePodResponse }>({
       method: "POST",
-      url: `api/v1/gateway/pods`,
+      url: `/api/v1/gateway/pods`,
       data: request,
     });
     return response.data;
@@ -55,6 +39,15 @@ export class Pods extends APIResource<Pod, PodData> {
       method: "POST",
       url: `api/v1/gateway/pods/${containerId}/kill`,
       data: {},
+    });
+    return response.data;
+  }
+
+  public async deployStub(request: DeployStubRequest): Promise<DeployStubResponse> {
+    const response = await this.request<{ data: DeployStubResponse }>({
+      method: "POST",
+      url: "/api/v1/gateway/stubs/deploy",
+      data: camelCaseToSnakeCaseKeys(request),
     });
     return response.data;
   }
@@ -114,8 +107,7 @@ export class Pod implements ResourceObject<PodData> {
   public authorized: boolean;
   public tcp: boolean;
 
-  private _id: string;
-  private _pod_stub?: PodServiceStub | null;
+
 
   /**
    * Create a new `Pod` resource instance.
@@ -127,7 +119,7 @@ export class Pod implements ResourceObject<PodData> {
   constructor(manager: Pods, data?: PodData, config?: PodConfig) {
     this.manager = manager;
     this.data = data || {} as PodData;
-    
+
     // Initialize configuration with defaults
     const cfg = config || {};
     this.app = cfg.app || "";
@@ -146,22 +138,10 @@ export class Pod implements ResourceObject<PodData> {
     this.authorized = cfg.authorized || false;
     this.tcp = cfg.tcp || false;
 
-    // Generate temporary ID
-    this._id = Math.random().toString(36).substring(2, 10);
+
   }
 
-  // Getter for stub (matches Python's @property decorator)
-  public get stub(): PodServiceStub {
-    if (!this._pod_stub) {
-      this._pod_stub = new PodServiceStubImpl(this.manager);
-    }
-    return this._pod_stub;
-  }
 
-  // Setter for stub (matches Python's @stub.setter decorator)
-  public set stub(value: PodServiceStub) {
-    this._pod_stub = value;
-  }
 
   /**
    * Refresh this pod's data from the server.
@@ -192,12 +172,11 @@ export class Pod implements ResourceObject<PodData> {
 
     let ignore_patterns: string[] = [];
     if (is_custom_image) {
-        ignore_patterns = ["**"];
+      ignore_patterns = ["**"];
     }
 
     if (!is_custom_image && this.entrypoint) {
-        // TODO: Add user code dir
-        this.entrypoint = ["sh", "-c", `cd ${USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
+      this.entrypoint = ["sh", "-c", `cd ${USER_CODE_DIR} && ${this.entrypoint.join(" ")}`];
     }
 
     const runner = new RunnerAbstraction({
@@ -220,8 +199,7 @@ export class Pod implements ResourceObject<PodData> {
 
     runner.setClient(this.manager.client);
 
-    const prepared = await runner.prepareRuntime(undefined, POD_RUN_STUB_TYPE, true, ignore_patterns);
-    console.log("Prepared", prepared);
+    const prepared = await runner.prepareRuntime(undefined, EStubType.PodRun, true, ignore_patterns);
     if (!prepared) {
       return new PodInstance({
         containerId: "",
@@ -235,10 +213,7 @@ export class Pod implements ResourceObject<PodData> {
     const request: CreatePodRequest = {
       stubId: runner.stubId,
     };
-    // console.log("Create pod request", request);
-    const response = await this.stub.createPod(request);
-    // console.log("Create pod response", response);
-    console.log("Response ok", response.ok);
+    const response = await this.manager.createPod(request);
     let url = "";
     if (response.ok) {
       console.log(`Container created successfully ===> ${response.containerId}`);
@@ -315,7 +290,7 @@ export class Pod implements ResourceObject<PodData> {
 
     runner.setClient(this.manager.client);
 
-    const prepared = await runner.prepareRuntime(undefined, POD_DEPLOYMENT_STUB_TYPE, true, ignorePatterns);
+    const prepared = await runner.prepareRuntime(undefined, EStubType.PodDeployment, true, ignorePatterns);
     if (!prepared) {
       return { deployment_details: {}, success: false };
     }
@@ -327,14 +302,7 @@ export class Pod implements ResourceObject<PodData> {
       };
 
       console.log("Deploying");
-      const response = await this.manager.client.request({
-        method: "POST",
-        url: "/api/v1/gateway/stubs/deploy",
-        data: camelCaseToSnakeCaseKeys(req),
-      });
-
-      console.log("Deploy response", response);``
-      const deployRes: DeployStubResponse = response.data;
+      const deployRes: DeployStubResponse = await this.manager.deployStub(req);
 
       if (deployRes.ok) {
         console.log("Deployed 🎉");
@@ -360,11 +328,11 @@ export class Pod implements ResourceObject<PodData> {
   }
 
   public generateDeploymentArtifacts(options: Record<string, any> = {}): void {
-    // Not implemented
+    throw new Error("Not implemented");
   }
 
   public cleanupDeploymentArtifacts(): void {
-    // Not implemented
+    throw new Error("Not implemented");
   }
 }
 

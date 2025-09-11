@@ -3,6 +3,7 @@ import { createReadStream, createWriteStream, statSync, existsSync, writeFileSyn
 import { readdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join, resolve, relative } from 'path';
+import { formatBytes } from './util';
 import archiver from 'archiver';
 import axios from 'axios';
 import BeamClient from './index';
@@ -126,9 +127,9 @@ export class FileSyncer {
 
   private readIgnoreFile(): string[] {
     console.log(`Reading ${ignoreFileName()} file`);
-    
+
     const patterns: string[] = [];
-    
+
     if (existsSync(this.ignoreFilePath)) {
       const content = readFileSync(this.ignoreFilePath, 'utf-8');
       return content
@@ -136,13 +137,13 @@ export class FileSyncer {
         .map(line => line.trim())
         .filter(line => line && !line.startsWith('#'));
     }
-    
+
     return patterns;
   }
 
   private shouldIgnore(filePath: string): boolean {
     const relativePath = relative(this.rootDir, filePath);
-    
+
     // Simple pattern matching - could be enhanced with proper glob matching
     return this.ignorePatterns.some(pattern => {
       if (pattern === '*') return true;
@@ -166,7 +167,7 @@ export class FileSyncer {
     }
 
     const relativePath = relative(this.rootDir, filePath);
-    
+
     return this.includePatterns.some(pattern => {
       if (pattern.includes('*')) {
         const regex = new RegExp(pattern.replace(/\*/g, '.*'));
@@ -187,10 +188,10 @@ export class FileSyncer {
       const files: string[] = [];
       try {
         const entries = await readdir(dir, { withFileTypes: true });
-        
+
         for (const entry of entries) {
           const fullPath = join(dir, entry.name);
-          
+
           if (entry.isDirectory()) {
             if (!this.shouldIgnore(fullPath)) {
               const subFiles = await walk(fullPath);
@@ -218,7 +219,7 @@ export class FileSyncer {
     return new Promise((resolve, reject) => {
       const hash = createHash('sha256');
       const stream = createReadStream(filePath);
-      
+
       stream.on('error', reject);
       stream.on('data', chunk => hash.update(chunk));
       stream.on('end', () => resolve(hash.digest('hex')));
@@ -282,9 +283,9 @@ export class FileSyncer {
       try {
         const relativePath = relative(this.rootDir, filePath);
         const stats = statSync(filePath);
-        
+
         if (stats.isFile()) {
-          archive.file(filePath, { 
+          archive.file(filePath, {
             name: relativePath,
             date: stats.mtime // Preserve modification time
           });
@@ -312,7 +313,7 @@ export class FileSyncer {
 
     // Log compression statistics
     const compressionRatio = archive.pointer() > 0 ? ((stats.size / archive.pointer()) * 100).toFixed(1) : '0';
-    console.log(`Archive stats: ${this.formatBytes(stats.size)} (${compressionRatio}% compression ratio)`);
+    console.log(`Archive stats: ${formatBytes(stats.size)} (${compressionRatio}% compression ratio)`);
 
     return {
       filePath: tempZipPath,
@@ -322,7 +323,6 @@ export class FileSyncer {
   }
 
   private async headObject(hash: string): Promise<HeadObjectResponse> {
-    console.log("workspaceId", this.client.opts.workspaceId);
     const response = await this.client.request({
       method: 'GET',
       url: `/api/v1/gateway/objects/${hash}`
@@ -345,9 +345,9 @@ export class FileSyncer {
     try {
       const stats = statSync(filePath);
       const fileStream = createReadStream(filePath);
-      
-      console.log(`Uploading ${this.formatBytes(stats.size)} to cloud storage...`);
-      
+
+      console.log(`Uploading ${formatBytes(stats.size)} to cloud storage...`);
+
       await axios.put(presignedUrl, fileStream, {
         headers: {
           'Content-Type': 'application/zip',
@@ -359,7 +359,7 @@ export class FileSyncer {
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const progress = ((progressEvent.loaded / progressEvent.total) * 100).toFixed(1);
-            console.log(`Upload progress: ${progress}% (${this.formatBytes(progressEvent.loaded)}/${this.formatBytes(progressEvent.total)})`);
+            console.log(`Upload progress: ${progress}% (${formatBytes(progressEvent.loaded)}/${formatBytes(progressEvent.total)})`);
           }
         }
       });
@@ -370,13 +370,6 @@ export class FileSyncer {
       console.error('Upload failed:', error);
       return false;
     }
-  }
-
-  private formatBytes(bytes: number): string {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   }
 
   public async sync(
@@ -396,7 +389,7 @@ export class FileSyncer {
     }
 
     _syncLock = true;
-    
+
     try {
       return await this._sync(ignorePatterns, includePatterns, cacheObjectId);
     } finally {
@@ -427,52 +420,55 @@ export class FileSyncer {
 
     const { filePath: tempZipPath, size, hash } = await this.createZipFile();
 
-    if (this.ignorePatterns[0] !== '*') {
-      console.log(`Collected object is ${this.formatBytes(size)}`);
+    if (!this.ignorePatterns.includes('*')) {
+      console.log(`Collected object is ${formatBytes(size)}`);
     }
-
-    let objectId: string | null = null;
 
     try {
       const headResponse = await this.headObject(hash);
-      
-      if (!headResponse.exists) {
-        const metadata: ObjectMetadata = { name: hash, size };
 
-        console.log('Uploading');
-        
-        if (headResponse.useWorkspaceStorage) {
-          const createResponse = await this.createObject({
-            object_metadata: metadata,
-            hash,
-            size,
-            overwrite: true
-          });
-
-          if (createResponse.ok) {
-            const uploadSuccess = await this.uploadToPresignedUrl(createResponse.presignedUrl, tempZipPath);
-            
-            if (uploadSuccess) {
-              if (this.isWorkspaceDir && cacheObjectId) {
-                setWorkspaceObjectId(createResponse.objectId);
-              }
-              objectId = createResponse.objectId;
-            } else {
-              console.error('File sync failed here');
-            }
-          }
-        } else {
-          // TODO: Implement streaming upload for older workspaces
-
-          console.error('Streaming upload not yet implemented');
+      if (headResponse.exists) {
+        if (!headResponse.ok) {
+          console.error('File sync failed');
+          return { success: false, object_id: '' };
         }
-      } else if (headResponse.exists && headResponse.ok) {
         console.log('Files already synced');
 
         if (this.isWorkspaceDir && cacheObjectId) {
           setWorkspaceObjectId(headResponse.objectId);
         }
-        objectId = headResponse.objectId;
+        return { success: true, object_id: headResponse.objectId };
+      }
+
+      const metadata: ObjectMetadata = { name: hash, size };
+
+      if (!headResponse.useWorkspaceStorage) {
+        console.error('Streaming upload not implemented. Please migrate to use workspace storage. Contact support@beam.cloud for assistance.');
+        return { success: false, object_id: '' };
+      }
+
+      const createResponse = await this.createObject({
+        object_metadata: metadata,
+        hash,
+        size,
+        overwrite: true
+      });
+
+      if (createResponse.ok) {
+        const uploadSuccess = await this.uploadToPresignedUrl(createResponse.presignedUrl, tempZipPath);
+
+        if (uploadSuccess) {
+          if (this.isWorkspaceDir && cacheObjectId) {
+            setWorkspaceObjectId(createResponse.objectId);
+          }
+          return { success: true, object_id: createResponse.objectId };
+        } else {
+          console.error('File sync failed');
+          return { success: false, object_id: '' };
+        }
+      } else {
+        console.error('File sync failed');
+        return { success: false, object_id: '' };
       }
     } finally {
       // Clean up temporary file
@@ -482,13 +478,5 @@ export class FileSyncer {
         console.warn(`Failed to clean up temporary file: ${error}`);
       }
     }
-
-    if (objectId === null) {
-      console.error('File sync failed');
-      return { success: false, object_id: '' };
-    }
-
-    console.log('Files synced');
-    return { success: true, object_id: objectId };
   }
 }

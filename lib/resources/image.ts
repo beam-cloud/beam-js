@@ -27,7 +27,7 @@ export class Images extends APIResource<Image, ImageData> {
 
   public async buildImage(request: BuildImageRequest): Promise<AsyncIterable<BuildImageResponse>> {
     const apiRequest = this._transformRequestToSnakeCase(request);
-    
+
     const response = await this.request<any>({
       method: "POST",
       url: "/api/v1/gateway/images/build",
@@ -40,23 +40,23 @@ export class Images extends APIResource<Image, ImageData> {
 
   private _transformRequestToSnakeCase(request: BuildImageRequest): any {
     const transformed = camelCaseToSnakeCaseKeys(request);
-    
+
     if (transformed.gpu === GpuType.NoGPU) {
       delete transformed.gpu;
     }
-    
+
     return transformed;
   }
 
   private async *_createAsyncIterable(response: any): AsyncIterable<BuildImageResponse> {
     const stream = response.data;
     let buffer = '';
-    
+
     for await (const chunk of stream) {
       buffer += chunk.toString();
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
-      
+
       for (const line of lines) {
         const trimmedLine = line.trim();
         if (trimmedLine) {
@@ -69,7 +69,7 @@ export class Images extends APIResource<Image, ImageData> {
         }
       }
     }
-    
+
     if (buffer.trim()) {
       try {
         const jsonResponse = JSON.parse(buffer.trim()).result;
@@ -81,8 +81,8 @@ export class Images extends APIResource<Image, ImageData> {
   }
 
   public async verifyImageBuild(request: VerifyImageBuildRequest): Promise<VerifyImageBuildResponse> {
-    const apiRequest = this._transformVerifyRequestToSnakeCase(request);
-    
+    const apiRequest = this._transformRequestToSnakeCase(request);
+
     const response = await this.request<{ data: VerifyImageBuildResponse }>({
       method: "POST",
       url: "/api/v1/gateway/images/verify-build",
@@ -90,16 +90,6 @@ export class Images extends APIResource<Image, ImageData> {
     });
 
     return response.data;
-  }
-
-  private _transformVerifyRequestToSnakeCase(request: VerifyImageBuildRequest): any {
-    const transformed = camelCaseToSnakeCaseKeys(request);
-    
-    if (transformed.gpu === GpuType.NoGPU) {
-      delete transformed.gpu;
-    }
-    
-    return transformed;
   }
 }
 
@@ -169,7 +159,7 @@ export class Image {
 
   static async fromDockerfile(manager: Images, dockerfilePath: string, contextDir?: string): Promise<Image> {
     const image = new Image(manager);
-    
+
     if (!contextDir) {
       contextDir = path.dirname(dockerfilePath);
     }
@@ -464,11 +454,11 @@ export class Image {
     const { FileSyncer } = await import('../sync');
     const syncer = new FileSyncer(this.manager.client, contextDir || "./");
     const result = await syncer.sync([], [], cacheObjectId);
-    
+
     if (!result.success) {
       throw new Error('File sync failed');
     }
-    
+
     return result.object_id;
   }
 

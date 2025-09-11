@@ -1,15 +1,6 @@
 import BaseData from "./base";
 import { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias } from "./common";
 
-// Keep legacy compatibility for micromamba versions
-export type ExtendedPythonVersion = PythonVersion | 
-  "python3" |
-  "micromamba3.8" |
-  "micromamba3.9" |
-  "micromamba3.10" |
-  "micromamba3.11" |
-  "micromamba3.12";
-
 // Re-export for backwards compatibility
 export { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias };
 
@@ -38,7 +29,7 @@ export interface NGCCredentials {
   NGC_API_KEY?: string;
 }
 
-export type ImageCredentialKeys = 
+export type ImageCredentialKeys =
   | "AWS_ACCESS_KEY_ID"
   | "AWS_SECRET_ACCESS_KEY"
   | "AWS_SESSION_TOKEN"
@@ -48,7 +39,7 @@ export type ImageCredentialKeys =
   | "GCP_ACCESS_TOKEN"
   | "NGC_API_KEY";
 
-export type ImageCredentials = 
+export type ImageCredentials =
   | AWSCredentials
   | DockerHubCredentials
   | GCPCredentials
@@ -108,7 +99,7 @@ export interface ImageBuildResult {
 }
 
 export interface ImageConfig {
-  pythonVersion?: ExtendedPythonVersion | string;
+  pythonVersion?: PythonVersionAlias | string;
   pythonPackages?: string[] | string;
   commands?: string[];
   baseImage?: string;

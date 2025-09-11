@@ -23,11 +23,3 @@ export class PricingPolicy {
     this.costPerTaskDurationMs = config.costPerTaskDurationMs ?? 0.0;
   }
 }
-
-// Proto interface for API requests
-export interface PricingPolicyProto {
-  maxInFlight: number;
-  costModel: string;
-  costPerTask: number;
-  costPerTaskDurationMs: number;
-}

@@ -74,16 +74,15 @@ export default class BeamClient {
 export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from './sync';
 
 // Export Pod classes and types
-export { Pod, Pods, PodInstance, PodServiceStubImpl } from './resources/pod';
-export { 
-  PodData, 
-  PodConfig, 
+export { Pod, Pods, PodInstance } from './resources/pod';
+export {
+  PodData,
+  PodConfig,
   PodInstanceData,
-  CreatePodRequest, 
-  CreatePodResponse, 
+  CreatePodRequest,
+  CreatePodResponse,
   StopPodRequest,
   StopPodResponse,
-  PodServiceStub,
   EPodStatus,
   PodVolume
 } from './types/pod';
@@ -94,10 +93,10 @@ export { ImageConfig, ImageData } from './types/image';
 
 // Export Volume classes and types
 export { Volume, Volumes, CloudBucket } from './resources/volume';
-export { 
-  VolumeData, 
-  VolumeGateway, 
-  CloudBucketConfig, 
+export {
+  VolumeData,
+  VolumeGateway,
+  CloudBucketConfig,
   VolumeConfigGateway,
   GetOrCreateVolumeRequest,
   GetOrCreateVolumeResponse
@@ -125,27 +124,4 @@ export {
 } from './types/common';
 
 // Export stub types and constants
-export {
-  CONTAINER_STUB_TYPE,
-  FUNCTION_STUB_TYPE,
-  TASKQUEUE_STUB_TYPE,
-  ENDPOINT_STUB_TYPE,
-  ASGI_STUB_TYPE,
-  SCHEDULE_STUB_TYPE,
-  BOT_STUB_TYPE,
-  SHELL_STUB_TYPE,
-  TASKQUEUE_DEPLOYMENT_STUB_TYPE,
-  ENDPOINT_DEPLOYMENT_STUB_TYPE,
-  ASGI_DEPLOYMENT_STUB_TYPE,
-  FUNCTION_DEPLOYMENT_STUB_TYPE,
-  SCHEDULE_DEPLOYMENT_STUB_TYPE,
-  BOT_DEPLOYMENT_STUB_TYPE,
-  TASKQUEUE_SERVE_STUB_TYPE,
-  ENDPOINT_SERVE_STUB_TYPE,
-  ASGI_SERVE_STUB_TYPE,
-  FUNCTION_SERVE_STUB_TYPE,
-  BOT_SERVE_STUB_TYPE,
-  POD_DEPLOYMENT_STUB_TYPE,
-  POD_RUN_STUB_TYPE,
-  SANDBOX_STUB_TYPE,
-} from './types/stub';
+export { EStubType } from './types/stub';

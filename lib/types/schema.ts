@@ -15,7 +15,7 @@ export class SchemaField {
     this.type = config.type;
     this.description = config.description;
     this.required = config.required;
-    
+
     if (config.fields) {
       this.fields = new Schema({ fields: config.fields });
     }
@@ -51,7 +51,7 @@ export class Schema {
 
   constructor(config: SchemaConfig) {
     this.fields = {};
-    
+
     Object.entries(config.fields).forEach(([key, fieldConfig]) => {
       this.fields[key] = new SchemaField(fieldConfig);
     });
@@ -68,16 +68,4 @@ export class Schema {
 
     return result;
   }
-}
-
-// Proto interfaces for API requests
-export interface SchemaFieldProto {
-  type: string;
-  description?: string;
-  required?: boolean;
-  fields?: SchemaProto;
-}
-
-export interface SchemaProto {
-  fields: Record<string, SchemaFieldProto>;
 }

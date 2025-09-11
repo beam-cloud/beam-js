@@ -164,7 +164,7 @@ export class RunnerAbstraction {
   public setClient(client: BeamClient): void {
     this.client = client;
     this.syncer = new FileSyncer(client);
-    
+
     // Initialize image if not provided
     if (!this.image || Object.keys(this.image).length === 0) {
       this.image = Image.create(client.images);
@@ -183,7 +183,7 @@ export class RunnerAbstraction {
         url: `/api/v1/gateway/stubs/${this.stubId}/url`,
         data: {
           deploymentId: "", // TODO: Add deployment_id if needed
-          urlType: urlType, 
+          urlType: urlType,
           // TODO: Is shell?
         },
       });
@@ -303,7 +303,7 @@ export class RunnerAbstraction {
     // 1. Serialize the function for deployment
     // 2. Handle different environments (Node.js vs browser)
     // 3. Store function metadata
-    
+
     if (attr === "onStart") {
       this.onStart = `${func.name}:${func.name}`;
     } else if (attr === "handler") {
@@ -325,18 +325,18 @@ export class RunnerAbstraction {
     return func;
   }
 
-  private schemaToProto(pySchema?: Schema): any {
+  private schemaToApi(pySchema?: Schema): any {
     if (!pySchema) {
       return undefined;
     }
 
-    const fieldToProto = (field: any): any => {
+    const fieldToApi = (field: any): any => {
       if (field.type === "Object" && field.fields) {
         return {
           type: "object",
           fields: {
             fields: Object.fromEntries(
-              Object.entries(field.fields.fields).map(([k, v]) => [k, fieldToProto(v)])
+              Object.entries(field.fields.fields).map(([k, v]) => [k, fieldToApi(v)])
             ),
           },
         };
@@ -347,7 +347,7 @@ export class RunnerAbstraction {
     const fieldsDict = pySchema.toDict().fields;
     return {
       fields: Object.fromEntries(
-        Object.entries(fieldsDict).map(([k, v]) => [k, fieldToProto(v)])
+        Object.entries(fieldsDict).map(([k, v]) => [k, fieldToApi(v)])
       ),
     };
   }
@@ -412,7 +412,7 @@ export class RunnerAbstraction {
     for (const volume of this.volumes) {
       // Ensure volume has client set
       volume.setClient(this.client);
-      
+
       if (!volume.ready && !(await volume.getOrCreate())) {
         console.error(`Volume is not ready: ${volume.name}`);
         return false;
@@ -432,8 +432,8 @@ export class RunnerAbstraction {
     }
 
     // Prepare schemas
-    const inputs = this.inputs ? this.schemaToProto(this.inputs) : undefined;
-    const outputs = this.outputs ? this.schemaToProto(this.outputs) : undefined;
+    const inputs = this.inputs ? this.schemaToApi(this.inputs) : undefined;
+    const outputs = this.outputs ? this.schemaToApi(this.outputs) : undefined;
 
     // Create stub if not already created
     if (!this.stubCreated) {
