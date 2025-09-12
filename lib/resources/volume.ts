@@ -1,4 +1,4 @@
-import BeamClient from "..";
+import BeamClient from "index";
 import {
   GetOrCreateVolumeRequest,
   GetOrCreateVolumeResponse,
@@ -12,7 +12,6 @@ export class Volume {
   public ready: boolean = false;
   public volumeId?: string;
   public mountPath: string;
-  protected client?: BeamClient;
 
   constructor(name: string, mountPath: string) {
     /**
@@ -41,18 +40,9 @@ export class Volume {
     this.mountPath = mountPath;
   }
 
-  public setClient(client: BeamClient): void {
-    this.client = client;
-  }
-
   public async getOrCreate(): Promise<boolean> {
-    if (!this.client) {
-      console.error("Client not set. Call setClient() first.");
-      return false;
-    }
-
     try {
-      const response = await this.client.request({
+      const response = await BeamClient.request({
         method: "POST",
         url: "/api/v1/gateway/volumes",
         data: {
@@ -68,7 +58,9 @@ export class Volume {
         return true;
       }
 
-      console.error(`Failed to get or create volume: ${data.error || 'Unknown error'}`);
+      console.error(
+        `Failed to get or create volume: ${data.error || "Unknown error"}`
+      );
       return false;
     } catch (error) {
       console.error(`Failed to get or create volume ${this.name}:`, error);
@@ -144,21 +136,17 @@ export class CloudBucket extends Volume {
 
 // Legacy Volumes API resource for backwards compatibility
 export class Volumes {
-  private client: BeamClient;
-
-  constructor(client: BeamClient) {
-    this.client = client;
-  }
-
   public create(name: string, mountPath: string): Volume {
     const volume = new Volume(name, mountPath);
-    volume.setClient(this.client);
     return volume;
   }
 
-  public createCloudBucket(name: string, mountPath: string, config: CloudBucketConfig): CloudBucket {
+  public createCloudBucket(
+    name: string,
+    mountPath: string,
+    config: CloudBucketConfig
+  ): CloudBucket {
     const bucket = new CloudBucket(name, mountPath, config);
-    bucket.setClient(this.client);
     return bucket;
   }
 }

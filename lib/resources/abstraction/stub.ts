@@ -358,9 +358,6 @@ export class Stub {
 
     // Prepare volumes
     for (const volume of this.config.volumes || []) {
-      // Ensure volume has client set
-      volume.setClient(beamClient);
-
       if (!volume.ready && !(await volume.getOrCreate())) {
         console.error(`Volume is not ready: ${volume.name}`);
         return false;
