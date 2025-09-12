@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import APIResource from "../base";
 import {
   ImageData,
   ImageConfig,
@@ -16,14 +15,15 @@ import {
   ImageCredentialValueNotFound,
 } from "../../types/image";
 import { camelCaseToSnakeCaseKeys } from "../../util";
-import BeamClient from "lib";
+import beamClient from "../..";
 
-const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python310;
+const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
 
 const defaultConfig: ImageConfig = {
   pythonVersion: DEFAULT_PYTHON_VERSION,
   pythonPackages: [],
   commands: [],
+  buildSteps: [],
   baseImage: "",
   baseImageCreds: {},
   envVars: [],
@@ -32,20 +32,18 @@ const defaultConfig: ImageConfig = {
   gpu: "",
   ignorePython: false,
   includeFilesPatterns: [],
+  buildCtxObject: "",
+  snapshotId: "",
 };
 
 export class Image {
   public data: ImageData;
-  public config: ImageConfig;
-
+  public config: ImageConfig = defaultConfig;
   public isAvailable: boolean = false;
-  public client: BeamClient;
 
-  constructor(client: BeamClient, config: ImageConfig = defaultConfig) {
-    this.client = client;
+  constructor(config: ImageConfig = defaultConfig) {
     this.data = {
-      buildCtxObject: "",
-      snapshotId: "",
+      id: "",
     } as ImageData;
 
     this.config.pythonVersion = config.pythonVersion;
@@ -67,14 +65,15 @@ export class Image {
     this.config.gpu = config.gpu;
     this.config.ignorePython = config.ignorePython;
     this.config.includeFilesPatterns = config.includeFilesPatterns;
+    this.config.buildCtxObject = config.buildCtxObject;
+    this.config.snapshotId = config.snapshotId;
   }
 
   static async fromDockerfile(
-    client: BeamClient,
     dockerfilePath: string,
     contextDir?: string
   ): Promise<Image> {
-    const image = new Image(client, {
+    const image = new Image({
       ...defaultConfig,
       dockerfile: dockerfilePath,
     });
@@ -87,7 +86,7 @@ export class Image {
       // Sync files to get build context object ID
       console.log(`Syncing build context from: ${contextDir}`);
       const objectId = await image.syncFiles(contextDir);
-      image.data.buildCtxObject = objectId;
+      image.config.buildCtxObject = objectId;
       console.log(`Build context synced with object ID: ${objectId}`);
     } catch (error) {
       throw new Error(`Failed to sync build context: ${error}`);
@@ -105,12 +104,8 @@ export class Image {
     return image;
   }
 
-  static fromRegistry(
-    client: BeamClient,
-    imageUri: string,
-    credentials?: ImageCredentials
-  ): Image {
-    return new Image(client, {
+  static fromRegistry(imageUri: string, credentials?: ImageCredentials): Image {
+    return new Image({
       ...defaultConfig,
       baseImage: imageUri,
       baseImageCreds: credentials || {},
@@ -122,7 +117,7 @@ export class Image {
   ): Promise<AsyncIterable<BuildImageResponse>> {
     const apiRequest = this._transformRequestToSnakeCase(request);
 
-    const response = await this.client.request({
+    const response = await beamClient.request({
       method: "POST",
       url: "/api/v1/gateway/images/build",
       data: apiRequest,
@@ -181,7 +176,7 @@ export class Image {
   ): Promise<VerifyImageBuildResponse> {
     const apiRequest = this._transformRequestToSnakeCase(request);
 
-    const response = await this.client.request({
+    const response = await beamClient.request({
       method: "POST",
       url: "/api/v1/gateway/images/verify-build",
       data: apiRequest,
@@ -190,11 +185,11 @@ export class Image {
     return response.data;
   }
 
-  static fromSnapshot(client: BeamClient, snapshotId: string): Image {
-    const image = new Image(client, {
+  static fromSnapshot(snapshotId: string): Image {
+    const image = new Image({
       ...defaultConfig,
     });
-    image.data.snapshotId = snapshotId;
+    image.config.snapshotId = snapshotId;
     return image;
   }
 
@@ -209,11 +204,11 @@ export class Image {
       existingImageUri: this.config.baseImage,
       envVars: this._processEnvVars(this.config.envVars),
       dockerfile: this.config.dockerfile,
-      buildCtxObject: this.data.buildCtxObject,
+      buildCtxObject: this.config.buildCtxObject,
       secrets: this.config.secrets,
       gpu: this.config.gpu,
       ignorePython: this.config.ignorePython,
-      snapshotId: this.data.snapshotId,
+      snapshotId: this.config.snapshotId,
     };
 
     const response = await this.verifyImageBuild(request);
@@ -254,7 +249,7 @@ export class Image {
       existingImageCreds: this.getCredentialsFromEnv(),
       envVars: this._processEnvVars(this.config.envVars),
       dockerfile: this.config.dockerfile,
-      buildCtxObject: this.data.buildCtxObject,
+      buildCtxObject: this.config.buildCtxObject,
       secrets: this.config.secrets,
       gpu: this.config.gpu,
       ignorePython: this.config.ignorePython,
@@ -436,7 +431,7 @@ export class Image {
     cacheObjectId: boolean = true
   ): Promise<string> {
     const { FileSyncer } = await import("../../sync");
-    const syncer = new FileSyncer(this.client, contextDir || "./");
+    const syncer = new FileSyncer(contextDir || "./");
     const result = await syncer.sync([], [], cacheObjectId);
 
     if (!result.success) {

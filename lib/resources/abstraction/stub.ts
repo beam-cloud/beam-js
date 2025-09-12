@@ -1,5 +1,5 @@
 import * as path from "path";
-import BeamClient from "../..";
+import beamClient from "../..";
 import { Image } from "./image";
 import { Volume } from "../volume";
 import { FileSyncer } from "../../sync";
@@ -67,7 +67,6 @@ function setStubCreatedForWorkspace(value: boolean): void {
 export class Stub {
   // Internal state
   public syncer: FileSyncer;
-  public client: BeamClient;
   public config: StubConfig;
   // Runtime state properties
   public imageAvailable?: boolean = false;
@@ -79,45 +78,41 @@ export class Stub {
   public imageId?: string = "";
   public objectId?: string = "";
 
-  constructor(
-    client: BeamClient,
-    {
-      name,
-      app,
-      authorized = true,
-      image,
-      callbackUrl = "",
-      cpu = 1,
-      ports = [],
-      memory = 128,
-      gpuCount = 0,
-      volumes = [],
-      gpu = "",
-      secrets = [],
-      env = {},
-      workers = 1,
-      concurrentRequests = 1,
-      keepWarmSeconds = 60,
-      maxPendingTasks = 100,
-      autoscaler = new QueueDepthAutoscaler(),
-      taskPolicy = new TaskPolicy(),
-      checkpointEnabled = false,
-      entrypoint = [],
-      pricing = undefined,
-      inputs = undefined,
-      outputs = undefined,
-      tcp = false,
-    }: StubConfig
-  ) {
-    this.client = client;
+  constructor({
+    name,
+    app,
+    authorized = true,
+    image,
+    callbackUrl = "",
+    cpu = 1,
+    ports = [],
+    memory = 128,
+    gpuCount = 0,
+    volumes = [],
+    gpu = "",
+    secrets = [],
+    env = {},
+    workers = 1,
+    concurrentRequests = 1,
+    keepWarmSeconds = 60,
+    maxPendingTasks = 100,
+    autoscaler = new QueueDepthAutoscaler(),
+    taskPolicy = new TaskPolicy(),
+    checkpointEnabled = false,
+    entrypoint = [],
+    pricing = undefined,
+    inputs = undefined,
+    outputs = undefined,
+    tcp = false,
+  }: StubConfig) {
     this.config = {} as StubConfig;
     this.config.name = name;
     this.config.app = app || name;
     this.config.authorized = authorized;
-    this.config.image = image || new Image(client);
+    this.config.image = image || new Image();
     this.config.callbackUrl = callbackUrl;
-    this.config.cpu = this.parseCpu(cpu || 1.0);
-    this.config.memory = this.parseMemory(memory || 128);
+    this.config.cpu = cpu;
+    this.config.memory = memory;
     this.config.gpu = gpu;
     this.config.gpuCount = gpuCount;
     this.config.volumes = volumes;
@@ -146,33 +141,19 @@ export class Stub {
     }
 
     // Initialize client and syncer (will be set when prepare_runtime is called)
-    this.syncer = {} as FileSyncer; // Will be initialized with client
-  }
-
-  public getClient(): BeamClient | undefined {
-    return this.client;
-  }
-
-  public setClient(client: BeamClient): void {
-    this.client = client;
-    this.syncer = new FileSyncer(client);
-
-    // Initialize image if not provided
-    if (!this.config.image || Object.keys(this.config.image).length === 0) {
-      this.config.image = new Image(client);
-    }
+    this.syncer = new FileSyncer();
   }
 
   public async printInvocationSnippet(
     urlType: string = ""
   ): Promise<GetUrlResponse | null> {
-    if (!this.client) {
+    if (!beamClient) {
       console.error("Client not set");
       return null;
     }
 
     try {
-      const response = await this.client.request({
+      const response = await beamClient.request({
         method: "GET",
         url: `/api/v1/gateway/stubs/${this.stubId}/url`,
         data: {
@@ -329,7 +310,7 @@ export class Stub {
     forceCreateStub: boolean = false,
     ignorePatterns?: string[]
   ): Promise<boolean> {
-    if (!this.client) {
+    if (!beamClient) {
       console.error("Client not set. Call setClient() first.");
       return false;
     }
@@ -378,7 +359,7 @@ export class Stub {
     // Prepare volumes
     for (const volume of this.config.volumes || []) {
       // Ensure volume has client set
-      volume.setClient(this.client);
+      volume.setClient(beamClient);
 
       if (!volume.ready && !(await volume.getOrCreate())) {
         console.error(`Volume is not ready: ${volume.name}`);
@@ -464,7 +445,7 @@ export class Stub {
         let stubResponse: GetOrCreateStubResponse;
 
         if (isStubCreatedForWorkspace()) {
-          const response = await this.client.request({
+          const response = await beamClient.request({
             method: "POST",
             url: "/api/v1/gateway/stubs",
             data: camelCaseToSnakeCaseKeys(stubRequest),
@@ -484,7 +465,7 @@ export class Stub {
 
           _stubCreationLock = true;
           try {
-            const response = await this.client.request({
+            const response = await beamClient.request({
               method: "POST",
               url: "/api/v1/gateway/stubs",
               data: camelCaseToSnakeCaseKeys(stubRequest),
@@ -520,7 +501,7 @@ export class Stub {
   public async deployStub(
     request: DeployStubRequest
   ): Promise<DeployStubResponse> {
-    const response = await this.client.request({
+    const response = await beamClient.request({
       method: "POST",
       url: "/api/v1/gateway/stubs/deploy",
       data: camelCaseToSnakeCaseKeys(request),

@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import { Pod, PodInstance } from "./pod";
-import { Image } from "./image";
-import { Stub, StubConfig } from "./stub";
+import { StubConfig } from "./stub";
 import { EStubType } from "../../types/stub";
 import type {
   PodSandboxSnapshotResponse,
@@ -12,7 +11,7 @@ import type {
   PodSandboxCreateDirectoryResponse,
   PodInstanceData,
 } from "../../types/pod";
-import BeamClient from "lib";
+import beamClient from "../..";
 
 /** Error thrown when connecting to a sandbox fails. */
 export class SandboxConnectionError extends Error {}
@@ -52,12 +51,8 @@ export class Sandbox extends Pod {
   public debugBuffer: string = "";
   public syncLocalDir: boolean = false;
 
-  constructor(
-    client: BeamClient,
-    config: StubConfig,
-    syncLocalDir: boolean = false
-  ) {
-    super(client, config);
+  constructor(config: StubConfig, syncLocalDir: boolean = false) {
+    super(config);
     this.syncLocalDir = syncLocalDir;
   }
 
@@ -83,7 +78,7 @@ export class Sandbox extends Pod {
    * Throws: SandboxConnectionError if the connection fails.
    */
   public async connect(id: string): Promise<SandboxInstance> {
-    const resp = await this.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${id}/connect`,
       data: {},
@@ -129,7 +124,7 @@ export class Sandbox extends Pod {
     // eslint-disable-next-line no-console
     console.log(`Creating sandbox from snapshot: ${snapshotId}`);
 
-    const createResp = await this.stub.client.request({
+    const createResp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods`,
       data: { stubId, snapshotId },
@@ -218,7 +213,7 @@ export class Sandbox extends Pod {
     // eslint-disable-next-line no-console
     console.log("Creating sandbox");
 
-    const createResp = await this.stub.client.request({
+    const createResp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods`,
       data: { stubId: this.stub.stubId },
@@ -289,7 +284,7 @@ export class SandboxInstance extends PodInstance {
   public terminated: boolean = false;
 
   constructor(data: { stubId: string } & PodInstanceData, pod: Pod) {
-    super(data, pod.stub.client, pod);
+    super(data, pod);
     this.stubId = data.stubId;
     this.fs = new SandboxFileSystem(this);
     this.process = new SandboxProcessManager(this);
@@ -304,7 +299,7 @@ export class SandboxInstance extends PodInstance {
     // eslint-disable-next-line no-console
     console.log(`Creating snapshot of: ${this.containerId}`);
 
-    const resp = await this.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/snapshot`,
       data: { stubId: this.stubId },
@@ -326,7 +321,7 @@ export class SandboxInstance extends PodInstance {
    * Parameters: ttl (number): The number of seconds to keep the sandbox alive. Use -1 for never timeout.
    */
   public async update_ttl(ttl: number): Promise<void> {
-    const resp = await this.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "PATCH",
       url: `/api/v1/gateway/pods/${this.containerId}/ttl`,
       data: { ttl },
@@ -340,7 +335,7 @@ export class SandboxInstance extends PodInstance {
    * Dynamically expose a port to the internet. Returns the public URL.
    */
   public async expose_port(port: number): Promise<string> {
-    const resp = await this.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/ports/expose`,
       data: { stubId: this.stubId, port },
@@ -441,7 +436,7 @@ export class SandboxProcessManager {
       .map((a) => shellQuote(String(a)))
       .join(" ");
 
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/exec`,
       data: {
@@ -601,7 +596,7 @@ export class SandboxProcess {
 
   /** Kill the process. */
   public async kill(): Promise<void> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/kill`,
       data: { pid: this.pid },
@@ -613,7 +608,7 @@ export class SandboxProcess {
 
   /** Get the status of the process: [exit_code, status]. */
   public async status(): Promise<[number, string]> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "GET",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/status`,
       params: { pid: this.pid },
@@ -632,7 +627,7 @@ export class SandboxProcess {
   /** Get a handle to a stream of the process's stdout. */
   public get stdout(): SandboxProcessStream {
     return new SandboxProcessStream(this, async () => {
-      const resp = await this.sandbox_instance.pod.stub.client.request({
+      const resp = await beamClient.request({
         method: "GET",
         url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stdout`,
         params: { pid: this.pid },
@@ -645,7 +640,7 @@ export class SandboxProcess {
   /** Get a handle to a stream of the process's stderr. */
   public get stderr(): SandboxProcessStream {
     return new SandboxProcessStream(this, async () => {
-      const resp = await this.sandbox_instance.pod.stub.client.request({
+      const resp = await beamClient.request({
         method: "GET",
         url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stderr`,
         params: { pid: this.pid },
@@ -816,7 +811,7 @@ export class SandboxFileSystem {
     sandbox_path: string
   ): Promise<void> {
     const content = fs.readFileSync(local_path);
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/upload`,
       data: {
@@ -837,7 +832,7 @@ export class SandboxFileSystem {
     sandbox_path: string,
     local_path: string
   ): Promise<void> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "GET",
       url: `api/v1/gateway/pods/${
         this.sandbox_instance.containerId
@@ -854,7 +849,7 @@ export class SandboxFileSystem {
 
   /** Get the metadata of a file in the sandbox. */
   public async stat_file(sandbox_path: string): Promise<SandboxFileInfo> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "GET",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/stat`,
       params: { containerPath: sandbox_path },
@@ -880,7 +875,7 @@ export class SandboxFileSystem {
 
   /** List the files in a directory in the sandbox. */
   public async list_files(sandbox_path: string): Promise<SandboxFileInfo[]> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "GET",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/files`,
       params: { containerPath: sandbox_path },
@@ -905,7 +900,7 @@ export class SandboxFileSystem {
 
   /** Create a directory in the sandbox. */
   public async create_directory(sandbox_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/directories`,
       data: { containerPath: sandbox_path, mode: 0o755 },
@@ -919,7 +914,7 @@ export class SandboxFileSystem {
 
   /** Delete a directory in the sandbox. */
   public async delete_directory(sandbox_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "DELETE",
       url: `api/v1/gateway/pods/${
         this.sandbox_instance.containerId
@@ -934,7 +929,7 @@ export class SandboxFileSystem {
 
   /** Delete a file in the sandbox. */
   public async delete_file(sandbox_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "DELETE",
       url: `api/v1/gateway/pods/${
         this.sandbox_instance.containerId
@@ -953,7 +948,7 @@ export class SandboxFileSystem {
     old_string: string,
     new_string: string
   ): Promise<void> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/replace`,
       data: {
@@ -974,7 +969,7 @@ export class SandboxFileSystem {
     sandbox_path: string,
     pattern: string
   ): Promise<SandboxFileSearchResult[]> {
-    const resp = await this.sandbox_instance.pod.stub.client.request({
+    const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/find`,
       data: { containerPath: sandbox_path, pattern },

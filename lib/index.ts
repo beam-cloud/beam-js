@@ -1,7 +1,4 @@
 import axios, { Axios, AxiosRequestConfig } from "axios";
-import { Deployments } from "./resources/deployment";
-import { Tasks } from "./resources/task";
-import { Volumes } from "./resources/volume";
 import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
@@ -11,45 +8,37 @@ export interface BeamClientOpts {
   timeout?: number;
 }
 
-export default class BeamClient {
+export const beamOpts = {
+  token: "",
+  workspaceId: "",
+  gatewayUrl: "https://app.beam.cloud",
+};
+
+class BeamClient {
   private _client: Axios;
-  public opts: BeamClientOpts = {
-    token: "",
-    workspaceId: "",
-    gatewayUrl: "https://app.beam.cloud",
-  };
-  static BeamClient = this;
-  deployments: Deployments = new Deployments(this);
-  tasks: Tasks = new Tasks(this);
-  volumes: Volumes = new Volumes(this);
-
-  public constructor(opts: BeamClientOpts) {
-    this.opts = {
-      ...this.opts,
-      ...opts,
-    };
-
-    this._client = axios.create({
-      baseURL: this.opts.gatewayUrl,
-      headers: {
-        Authorization: `Bearer ${this.opts.token}`,
-        "Content-Type": "application/json",
-      },
-      timeout: this.opts.timeout,
-    });
-  }
-
-  public static async init(token: string): Promise<BeamClient> {
-    const client = new BeamClient({
-      token,
-      workspaceId: "",
-    });
-    const workspace = await client._getWorkspace();
-    client.opts.workspaceId = workspace.external_id;
-    return client;
-  }
 
   public async request(config: AxiosRequestConfig): Promise<any> {
+    if (!beamOpts.token) {
+      throw new Error("Beam token is not set");
+    }
+    if (!beamOpts.gatewayUrl) {
+      throw new Error("Beam gateway URL is not set");
+    }
+    if (!beamOpts.workspaceId) {
+      throw new Error("Beam workspace ID is not set");
+    }
+
+    if (!this._client) {
+      this._client = axios.create({
+        baseURL: beamOpts.gatewayUrl,
+        headers: {
+          Authorization: `Bearer ${beamOpts.token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+    }
+
     return await this._client.request(config);
   }
 
@@ -67,6 +56,8 @@ export default class BeamClient {
   }
 }
 
+export default new BeamClient();
+
 export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from "./sync";
 
 // Export Pod classes and types
@@ -81,6 +72,9 @@ export {
   EPodStatus,
   PodVolume,
 } from "./types/pod";
+
+// Export Sandbox classes and types
+export { Sandbox } from "./resources/abstraction/sandbox";
 
 // Export Image classes and types
 export { Image } from "./resources/abstraction/image";

@@ -1,12 +1,20 @@
-import { createHash } from 'crypto';
-import { createReadStream, createWriteStream, statSync, existsSync, writeFileSync, readFileSync, unlinkSync } from 'fs';
-import { readdir } from 'fs/promises';
-import { tmpdir } from 'os';
-import { join, resolve, relative } from 'path';
-import { formatBytes } from './util';
-import archiver from 'archiver';
-import axios from 'axios';
-import BeamClient from './index';
+import { createHash } from "crypto";
+import {
+  createReadStream,
+  createWriteStream,
+  statSync,
+  existsSync,
+  writeFileSync,
+  readFileSync,
+  unlinkSync,
+} from "fs";
+import { readdir } from "fs/promises";
+import { tmpdir } from "os";
+import { join, resolve, relative } from "path";
+import { formatBytes } from "./util";
+import archiver from "archiver";
+import axios from "axios";
+import beamClient from "./index";
 
 // Global workspace object id to signal to any other threads that the workspace has already been synced
 let _workspaceObjectId = "";
@@ -21,7 +29,7 @@ export function getWorkspaceObjectId(): string {
 }
 
 function ignoreFileName(): string {
-  return '.beamignore';
+  return ".beamignore";
 }
 
 function ignoreFileContents(): string {
@@ -101,14 +109,12 @@ export interface FileSyncResult {
 
 export class FileSyncer {
   private rootDir: string;
-  private client: BeamClient;
   private isWorkspaceDir: boolean;
   private ignorePatterns: string[] = [];
   private includePatterns: string[] = [];
 
-  constructor(client: BeamClient, rootDir: string = ".") {
+  constructor(rootDir: string = ".") {
     this.rootDir = resolve(rootDir);
-    this.client = client;
     this.isWorkspaceDir = rootDir === ".";
   }
 
@@ -131,11 +137,11 @@ export class FileSyncer {
     const patterns: string[] = [];
 
     if (existsSync(this.ignoreFilePath)) {
-      const content = readFileSync(this.ignoreFilePath, 'utf-8');
+      const content = readFileSync(this.ignoreFilePath, "utf-8");
       return content
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('#'));
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"));
     }
 
     return patterns;
@@ -145,19 +151,19 @@ export class FileSyncer {
     const relativePath = relative(this.rootDir, filePath);
 
     // Simple pattern matching - could be enhanced with proper glob matching
-    return this.ignorePatterns.some(pattern => {
-      if (pattern === '*') return true;
-      if (pattern.startsWith('**/')) {
+    return this.ignorePatterns.some((pattern) => {
+      if (pattern === "*") return true;
+      if (pattern.startsWith("**/")) {
         return relativePath.includes(pattern.slice(3));
       }
-      if (pattern.endsWith('/**')) {
+      if (pattern.endsWith("/**")) {
         return relativePath.startsWith(pattern.slice(0, -3));
       }
-      if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      if (pattern.includes("*")) {
+        const regex = new RegExp(pattern.replace(/\*/g, ".*"));
         return regex.test(relativePath);
       }
-      return relativePath === pattern || relativePath.startsWith(pattern + '/');
+      return relativePath === pattern || relativePath.startsWith(pattern + "/");
     });
   }
 
@@ -168,17 +174,17 @@ export class FileSyncer {
 
     const relativePath = relative(this.rootDir, filePath);
 
-    return this.includePatterns.some(pattern => {
-      if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+    return this.includePatterns.some((pattern) => {
+      if (pattern.includes("*")) {
+        const regex = new RegExp(pattern.replace(/\*/g, ".*"));
         return regex.test(relativePath);
       }
-      return relativePath === pattern || relativePath.startsWith(pattern + '/');
+      return relativePath === pattern || relativePath.startsWith(pattern + "/");
     });
   }
 
   private async *collectFiles(): AsyncGenerator<string> {
-    if (this.ignorePatterns.includes('*')) {
+    if (this.ignorePatterns.includes("*")) {
       return;
     }
 
@@ -217,53 +223,59 @@ export class FileSyncer {
 
   private static calculateSha256(filePath: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const hash = createHash('sha256');
+      const hash = createHash("sha256");
       const stream = createReadStream(filePath);
 
-      stream.on('error', reject);
-      stream.on('data', chunk => hash.update(chunk));
-      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on("error", reject);
+      stream.on("data", (chunk) => hash.update(chunk));
+      stream.on("end", () => resolve(hash.digest("hex")));
     });
   }
 
-  private async createZipFile(): Promise<{ filePath: string; size: number; hash: string }> {
+  private async createZipFile(): Promise<{
+    filePath: string;
+    size: number;
+    hash: string;
+  }> {
     const tempZipPath = join(tmpdir(), `beam-sync-${Date.now()}.zip`);
     const output = createWriteStream(tempZipPath);
-    const archive = archiver('zip', {
+    const archive = archiver("zip", {
       zlib: { level: 9 }, // Maximum compression
       forceLocalTime: true, // Better compatibility
-      store: false // Always compress
+      store: false, // Always compress
     });
 
     let totalFiles = 0;
     let processedFiles = 0;
 
     // Enhanced event handling
-    archive.on('error', (err) => {
-      console.error('Archive error:', err);
+    archive.on("error", (err) => {
+      console.error("Archive error:", err);
       throw err;
     });
 
-    archive.on('warning', (err) => {
-      if (err.code === 'ENOENT') {
-        console.warn('File not found (skipping):', err.path);
+    archive.on("warning", (err) => {
+      if (err.code === "ENOENT") {
+        console.warn("File not found (skipping):", err.path);
       } else {
-        console.warn('Archive warning:', err);
+        console.warn("Archive warning:", err);
       }
     });
 
     // Progress tracking
-    archive.on('entry', (entry) => {
+    archive.on("entry", (entry) => {
       processedFiles++;
       if (totalFiles > 0) {
         const progress = ((processedFiles / totalFiles) * 100).toFixed(1);
-        console.log(`Progress: ${progress}% (${processedFiles}/${totalFiles}) - ${entry.name}`);
+        console.log(
+          `Progress: ${progress}% (${processedFiles}/${totalFiles}) - ${entry.name}`
+        );
       }
     });
 
     // Handle output stream errors
-    output.on('error', (err) => {
-      console.error('Output stream error:', err);
+    output.on("error", (err) => {
+      console.error("Output stream error:", err);
       throw err;
     });
 
@@ -287,7 +299,7 @@ export class FileSyncer {
         if (stats.isFile()) {
           archive.file(filePath, {
             name: relativePath,
-            date: stats.mtime // Preserve modification time
+            date: stats.mtime, // Preserve modification time
           });
         }
       } catch (error) {
@@ -296,52 +308,64 @@ export class FileSyncer {
     }
 
     // Finalize the archive - this triggers the actual compression
-    console.log('Finalizing archive...');
+    console.log("Finalizing archive...");
     await archive.finalize();
 
     // Wait for the output stream to close
     await new Promise((resolve, reject) => {
-      output.on('close', () => {
-        console.log('Archive created successfully');
+      output.on("close", () => {
+        console.log("Archive created successfully");
         resolve(undefined);
       });
-      output.on('error', reject);
+      output.on("error", reject);
     });
 
     const stats = statSync(tempZipPath);
     const hash = await FileSyncer.calculateSha256(tempZipPath);
 
     // Log compression statistics
-    const compressionRatio = archive.pointer() > 0 ? ((stats.size / archive.pointer()) * 100).toFixed(1) : '0';
-    console.log(`Archive stats: ${formatBytes(stats.size)} (${compressionRatio}% compression ratio)`);
+    const compressionRatio =
+      archive.pointer() > 0
+        ? ((stats.size / archive.pointer()) * 100).toFixed(1)
+        : "0";
+    console.log(
+      `Archive stats: ${formatBytes(
+        stats.size
+      )} (${compressionRatio}% compression ratio)`
+    );
 
     return {
       filePath: tempZipPath,
       size: stats.size,
-      hash
+      hash,
     };
   }
 
   private async headObject(hash: string): Promise<HeadObjectResponse> {
-    const response = await this.client.request({
-      method: 'GET',
-      url: `/api/v1/gateway/objects/${hash}`
+    const response = await beamClient.request({
+      method: "GET",
+      url: `/api/v1/gateway/objects/${hash}`,
     });
 
     return response.data;
   }
 
-  private async createObject(request: CreateObjectRequest): Promise<CreateObjectResponse> {
-    const response = await this.client.request({
-      method: 'POST',
+  private async createObject(
+    request: CreateObjectRequest
+  ): Promise<CreateObjectResponse> {
+    const response = await beamClient.request({
+      method: "POST",
       url: `/api/v1/gateway/objects`,
-      data: request
+      data: request,
     });
 
     return response.data;
   }
 
-  private async uploadToPresignedUrl(presignedUrl: string, filePath: string): Promise<boolean> {
+  private async uploadToPresignedUrl(
+    presignedUrl: string,
+    filePath: string
+  ): Promise<boolean> {
     try {
       const stats = statSync(filePath);
       const fileStream = createReadStream(filePath);
@@ -350,24 +374,31 @@ export class FileSyncer {
 
       await axios.put(presignedUrl, fileStream, {
         headers: {
-          'Content-Type': 'application/zip',
-          'Content-Length': stats.size.toString()
+          "Content-Type": "application/zip",
+          "Content-Length": stats.size.toString(),
         },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
         timeout: 300000, // 5 minute timeout for large files
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
-            const progress = ((progressEvent.loaded / progressEvent.total) * 100).toFixed(1);
-            console.log(`Upload progress: ${progress}% (${formatBytes(progressEvent.loaded)}/${formatBytes(progressEvent.total)})`);
+            const progress = (
+              (progressEvent.loaded / progressEvent.total) *
+              100
+            ).toFixed(1);
+            console.log(
+              `Upload progress: ${progress}% (${formatBytes(
+                progressEvent.loaded
+              )}/${formatBytes(progressEvent.total)})`
+            );
           }
-        }
+        },
       });
 
-      console.log('Upload completed successfully ✅');
+      console.log("Upload completed successfully ✅");
       return true;
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error("Upload failed:", error);
       return false;
     }
   }
@@ -379,12 +410,12 @@ export class FileSyncer {
   ): Promise<FileSyncResult> {
     // Simple lock mechanism
     if (_syncLock) {
-      console.log('Sync already in progress');
-      return { success: false, object_id: '' };
+      console.log("Sync already in progress");
+      return { success: false, object_id: "" };
     }
 
-    if (this.isWorkspaceDir && getWorkspaceObjectId() !== '') {
-      console.log('Files already synced');
+    if (this.isWorkspaceDir && getWorkspaceObjectId() !== "") {
+      console.log("Files already synced");
       return { success: true, object_id: getWorkspaceObjectId() };
     }
 
@@ -402,7 +433,7 @@ export class FileSyncer {
     includePatterns: string[] = [],
     cacheObjectId: boolean = true
   ): Promise<FileSyncResult> {
-    console.log('Syncing files');
+    console.log("Syncing files");
 
     this.initIgnoreFile();
 
@@ -420,7 +451,7 @@ export class FileSyncer {
 
     const { filePath: tempZipPath, size, hash } = await this.createZipFile();
 
-    if (!this.ignorePatterns.includes('*')) {
+    if (!this.ignorePatterns.includes("*")) {
       console.log(`Collected object is ${formatBytes(size)}`);
     }
 
@@ -429,10 +460,10 @@ export class FileSyncer {
 
       if (headResponse.exists) {
         if (!headResponse.ok) {
-          console.error('File sync failed');
-          return { success: false, object_id: '' };
+          console.error("File sync failed");
+          return { success: false, object_id: "" };
         }
-        console.log('Files already synced');
+        console.log("Files already synced");
 
         if (this.isWorkspaceDir && cacheObjectId) {
           setWorkspaceObjectId(headResponse.objectId);
@@ -443,19 +474,24 @@ export class FileSyncer {
       const metadata: ObjectMetadata = { name: hash, size };
 
       if (!headResponse.useWorkspaceStorage) {
-        console.error('Streaming upload not implemented. Please migrate to use workspace storage. Contact support@beam.cloud for assistance.');
-        return { success: false, object_id: '' };
+        console.error(
+          "Streaming upload not implemented. Please migrate to use workspace storage. Contact support@beam.cloud for assistance."
+        );
+        return { success: false, object_id: "" };
       }
 
       const createResponse = await this.createObject({
         object_metadata: metadata,
         hash,
         size,
-        overwrite: true
+        overwrite: true,
       });
 
       if (createResponse.ok) {
-        const uploadSuccess = await this.uploadToPresignedUrl(createResponse.presignedUrl, tempZipPath);
+        const uploadSuccess = await this.uploadToPresignedUrl(
+          createResponse.presignedUrl,
+          tempZipPath
+        );
 
         if (uploadSuccess) {
           if (this.isWorkspaceDir && cacheObjectId) {
@@ -463,12 +499,12 @@ export class FileSyncer {
           }
           return { success: true, object_id: createResponse.objectId };
         } else {
-          console.error('File sync failed');
-          return { success: false, object_id: '' };
+          console.error("File sync failed");
+          return { success: false, object_id: "" };
         }
       } else {
-        console.error('File sync failed');
-        return { success: false, object_id: '' };
+        console.error("File sync failed");
+        return { success: false, object_id: "" };
       }
     } finally {
       // Clean up temporary file

@@ -1,5 +1,5 @@
 import { serializeNestedBaseObject } from "../types/base";
-import BeamClient from "..";
+import beamClient, { beamOpts } from "..";
 import { AxiosRequestConfig } from "axios";
 
 export interface ResourceObject<ResourceType> {
@@ -9,11 +9,8 @@ export interface ResourceObject<ResourceType> {
 
 abstract class APIResource<Resource, ResourceType> {
   protected object: string;
-  public client: BeamClient;
 
-  constructor(client: BeamClient) {
-    this.client = client;
-  }
+  constructor() {}
 
   protected abstract _constructResource(data: ResourceType): Resource;
 
@@ -29,12 +26,12 @@ abstract class APIResource<Resource, ResourceType> {
   public async request<ResponseType>(
     config: AxiosRequestConfig
   ): Promise<ResponseType> {
-    return await this.client.request(config);
+    return await beamClient.request(config);
   }
 
   public async get({ id }: { id: string }): Promise<Resource> {
-    const resp = await this.client.request({
-      url: `/api/v1/${this.object}/${this.client.opts.workspaceId}/${id}`,
+    const resp = await beamClient.request({
+      url: `/api/v1/${this.object}/${beamOpts.workspaceId}/${id}`,
     });
 
     if (resp.status !== 200) {
@@ -51,10 +48,10 @@ abstract class APIResource<Resource, ResourceType> {
       opts = {};
     }
 
-    const params = this.client._parseOptsToURLParams(opts);
-    const resp = await this.client.request({
+    const params = beamClient._parseOptsToURLParams(opts);
+    const resp = await beamClient.request({
       url: `/api/v1/${this.object}/${
-        this.client.opts.workspaceId
+        beamOpts.workspaceId
       }?${params.toString()}`,
     });
 
@@ -74,9 +71,9 @@ abstract class APIResource<Resource, ResourceType> {
   }
 
   public async delete(id: string): Promise<void> {
-    return await this.client.request({
+    return await beamClient.request({
       method: "DELETE",
-      url: `/api/v1/${this.object}/${this.client.opts.workspaceId}/${id}`,
+      url: `/api/v1/${this.object}/${beamOpts.workspaceId}/${id}`,
     });
   }
 }

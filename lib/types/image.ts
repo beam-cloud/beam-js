@@ -107,6 +107,7 @@ export interface ImageConfig {
   pythonVersion: PythonVersionAlias | string;
   pythonPackages: string[] | string;
   commands: string[];
+  buildSteps: BuildStep[];
   baseImage: string;
   baseImageCreds: ImageCredentials;
   envVars: string[] | Record<string, string> | string;
@@ -115,12 +116,12 @@ export interface ImageConfig {
   gpu: string;
   ignorePython: boolean;
   includeFilesPatterns: string[];
+  buildCtxObject: string;
+  snapshotId: string;
 }
 
 export interface ImageData {
   id: string;
-  buildCtxObject: string;
-  snapshotId: string;
 }
 
 export class ImageCredentialValueNotFound extends Error {

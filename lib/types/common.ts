@@ -35,6 +35,7 @@ export class TaskExitCode {
 }
 
 export enum PythonVersion {
+  Python3 = "python3",
   Python39 = "python3.9",
   Python310 = "python3.10",
   Python311 = "python3.11",

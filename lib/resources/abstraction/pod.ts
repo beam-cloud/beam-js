@@ -1,74 +1,32 @@
-import APIResource, { ResourceObject } from "../base";
-import { Image } from "./image";
 import {
   PodData,
   CreatePodRequest,
   CreatePodResponse,
-  StopPodRequest,
-  StopPodResponse,
   PodInstanceData,
 } from "../../types/pod";
-import { GpuType } from "../../types/image";
 import { Stub, StubConfig } from "./stub";
 import {
   EStubType,
   DeployStubRequest,
   DeployStubResponse,
 } from "../../types/stub";
-import { camelCaseToSnakeCaseKeys } from "../../util";
-import BeamClient from "../..";
+import beamClient from "../..";
 
 // TODO: Temp fix until common.py is implemented
 let USER_CODE_DIR = "/mnt/code";
-
-// export class Pods extends APIResource<Pod, PodData> {
-//   public object: string = "pod";
-
-//   public async createPod(
-//     request: CreatePodRequest
-//   ): Promise<CreatePodResponse> {
-//     const response = await this.request<{ data: CreatePodResponse }>({
-//       method: "POST",
-//       url: `/api/v1/gateway/pods`,
-//       data: request,
-//     });
-//     return response.data;
-//   }
-
-//   public async stopPod(request: StopPodRequest): Promise<StopPodResponse> {
-//     const { containerId } = request;
-//     const response = await this.request<{ data: StopPodResponse }>({
-//       method: "POST",
-//       url: `api/v1/gateway/pods/${containerId}/kill`,
-//       data: {},
-//     });
-//     return response.data;
-//   }
-
-//   public async deployStub(
-//     request: DeployStubRequest
-//   ): Promise<DeployStubResponse> {
-//     const response = await this.request<{ data: DeployStubResponse }>({
-//       method: "POST",
-//       url: "/api/v1/gateway/stubs/deploy",
-//       data: camelCaseToSnakeCaseKeys(request),
-//     });
-//     return response.data;
-//   }
-// }
 
 export class Pod {
   public data: PodData;
   public stub: Stub;
 
-  constructor(client: BeamClient, config: StubConfig) {
-    this.stub = new Stub(client, config);
+  constructor(config: StubConfig) {
+    this.stub = new Stub(config);
   }
 
   public async createPod(
     request: CreatePodRequest
   ): Promise<CreatePodResponse> {
-    const response = await this.stub.client.request({
+    const response = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods`,
       data: request,
@@ -119,7 +77,6 @@ export class Pod {
           ok: false,
           errorMsg: "Failed to prepare runtime",
         },
-        this.stub.client,
         this
       );
     }
@@ -159,7 +116,6 @@ export class Pod {
         ok: createResp.ok,
         errorMsg: createResp.errorMsg,
       },
-      this.stub.client,
       this
     );
   }
@@ -256,14 +212,6 @@ export class Pod {
       return { deployment_details: {}, success: false };
     }
   }
-
-  public generateDeploymentArtifacts(options: Record<string, any> = {}): void {
-    throw new Error("Not implemented");
-  }
-
-  public cleanupDeploymentArtifacts(): void {
-    throw new Error("Not implemented");
-  }
 }
 
 export class PodInstance {
@@ -271,20 +219,18 @@ export class PodInstance {
   public url: string;
   public ok: boolean;
   public errorMsg?: string;
-  private client: BeamClient;
   public pod: Pod;
 
-  constructor(data: PodInstanceData, client: BeamClient, pod: Pod) {
+  constructor(data: PodInstanceData, pod: Pod) {
     this.containerId = data.containerId;
     this.url = data.url;
     this.ok = data.ok;
     this.errorMsg = data.errorMsg;
-    this.client = client;
     this.pod = pod;
   }
 
   public async terminate(): Promise<boolean> {
-    const response = await this.client.request({
+    const response = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.containerId}/kill`,
       data: {},
