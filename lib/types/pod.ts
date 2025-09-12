@@ -3,23 +3,9 @@ import { GpuType } from "./image";
 
 export { GpuType };
 
-export interface PodData extends BaseData {
+export interface PodData {
   container_id: string;
   status: EPodStatus;
-  app: string;
-  name: string;
-  entrypoint: string[];
-  ports: number[];
-  cpu: number | string;
-  memory: number | string;
-  gpu: GpuType | GpuType[];
-  gpu_count: number;
-  volumes: PodVolume[];
-  secrets: string[];
-  env: Record<string, string>;
-  keep_warm_seconds: number;
-  authorized: boolean;
-  tcp: boolean;
   url?: string;
 }
 
@@ -68,24 +54,6 @@ export interface StopPodRequest {
 export interface StopPodResponse {
   ok: boolean;
   errorMsg?: string;
-}
-
-export interface PodConfig {
-  app?: string;
-  entrypoint?: string[];
-  ports?: number[];
-  name?: string;
-  cpu?: number | string;
-  memory?: number | string;
-  gpu?: GpuType | GpuType[];
-  gpu_count?: number;
-  image?: any;
-  volumes?: (PodVolume | CloudBucket)[];
-  secrets?: string[];
-  env?: Record<string, string>;
-  keep_warm_seconds?: number;
-  authorized?: boolean;
-  tcp?: boolean;
 }
 
 export interface PodSandboxExecRequest {

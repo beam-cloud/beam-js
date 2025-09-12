@@ -1,8 +1,6 @@
 import axios, { Axios, AxiosRequestConfig } from "axios";
 import { Deployments } from "./resources/deployment";
 import { Tasks } from "./resources/task";
-import { Images } from "./resources/image";
-import { Pods } from "./resources/pod";
 import { Volumes } from "./resources/volume";
 import { camelCaseToSnakeCaseKeys } from "./util";
 
@@ -23,8 +21,6 @@ export default class BeamClient {
   static BeamClient = this;
   deployments: Deployments = new Deployments(this);
   tasks: Tasks = new Tasks(this);
-  images: Images = new Images(this);
-  pods: Pods = new Pods(this);
   volumes: Volumes = new Volumes(this);
 
   public constructor(opts: BeamClientOpts) {
@@ -71,45 +67,44 @@ export default class BeamClient {
   }
 }
 
-export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from './sync';
+export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from "./sync";
 
 // Export Pod classes and types
-export { Pod, Pods, PodInstance } from './resources/pod';
+export { Pod, PodInstance } from "./resources/abstraction/pod";
 export {
   PodData,
-  PodConfig,
   PodInstanceData,
   CreatePodRequest,
   CreatePodResponse,
   StopPodRequest,
   StopPodResponse,
   EPodStatus,
-  PodVolume
-} from './types/pod';
+  PodVolume,
+} from "./types/pod";
 
 // Export Image classes and types
-export { Image, Images } from './resources/image';
-export { ImageConfig, ImageData } from './types/image';
+export { Image } from "./resources/abstraction/image";
+export { ImageConfig, ImageData } from "./types/image";
 
 // Export Volume classes and types
-export { Volume, Volumes, CloudBucket } from './resources/volume';
+export { Volume, Volumes, CloudBucket } from "./resources/volume";
 export {
   VolumeData,
   VolumeGateway,
   CloudBucketConfig,
   VolumeConfigGateway,
   GetOrCreateVolumeRequest,
-  GetOrCreateVolumeResponse
-} from './types/volume';
+  GetOrCreateVolumeResponse,
+} from "./types/volume";
 
-// Export Runner classes and types
-export { RunnerAbstraction, AbstractCallableWrapper } from './resources/runner';
+// Export Stub classes and types
+export { Stub, StubConfig } from "./resources/abstraction/stub";
 
 // Export supporting types
-export { Autoscaler, QueueDepthAutoscaler } from './types/autoscaler';
-export { TaskPolicy } from './types/task';
-export { PricingPolicy, PricingPolicyCostModel } from './types/pricing';
-export { Schema, SchemaField } from './types/schema';
+export { Autoscaler, QueueDepthAutoscaler } from "./types/autoscaler";
+export { TaskPolicy } from "./types/task";
+export { PricingPolicy, PricingPolicyCostModel } from "./types/pricing";
+export { Schema, SchemaField } from "./types/schema";
 
 // Export common types
 export {
@@ -121,7 +116,7 @@ export {
   PythonVersionAlias,
   GpuType,
   GpuTypeAlias,
-} from './types/common';
+} from "./types/common";
 
 // Export stub types and constants
-export { EStubType } from './types/stub';
+export { EStubType } from "./types/stub";

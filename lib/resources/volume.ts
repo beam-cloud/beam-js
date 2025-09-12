@@ -32,7 +32,7 @@ export class Volume {
      *   // Shared Volume
      *   const sharedVolume = new Volume("model_weights", "./my-weights");
      *
-     *   const runner = new RunnerAbstraction({
+     *   const stub = new Stub(client, {
      *     volumes: [sharedVolume]
      *   });
      *   ```
@@ -113,7 +113,7 @@ export class CloudBucket extends Volume {
      *     }
      *   );
      *
-     *   const runner = new RunnerAbstraction({
+     *   const stub = new Stub(client, {
      *     volumes: [cloudBucket]
      *   });
      *   ```

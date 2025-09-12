@@ -1,16 +1,25 @@
 import * as fs from "fs";
-import { Pod, Pods, PodInstance } from "./pod";
+import { Pod, PodInstance } from "./pod";
 import { Image } from "./image";
-import { RunnerAbstraction } from "./runner";
-import { EStubType } from "../types/stub";
-import type { PodConfig, PodSandboxSnapshotResponse, PodSandboxUpdateTtlResponse, PodSandboxExposePortResponse, PodSandboxExecResponse, PodSandboxListFilesResponse, PodSandboxCreateDirectoryResponse, PodInstanceData } from "../types/pod";
+import { Stub, StubConfig } from "./stub";
+import { EStubType } from "../../types/stub";
+import type {
+  PodSandboxSnapshotResponse,
+  PodSandboxUpdateTtlResponse,
+  PodSandboxExposePortResponse,
+  PodSandboxExecResponse,
+  PodSandboxListFilesResponse,
+  PodSandboxCreateDirectoryResponse,
+  PodInstanceData,
+} from "../../types/pod";
+import BeamClient from "lib";
 
 /** Error thrown when connecting to a sandbox fails. */
-export class SandboxConnectionError extends Error { }
+export class SandboxConnectionError extends Error {}
 /** Error thrown for sandbox filesystem operations. */
-export class SandboxFileSystemError extends Error { }
+export class SandboxFileSystemError extends Error {}
 /** Error thrown for sandbox process operations. */
-export class SandboxProcessError extends Error { }
+export class SandboxProcessError extends Error {}
 
 function shellQuote(arg: string): string {
   if (arg === "") return "''";
@@ -43,9 +52,13 @@ export class Sandbox extends Pod {
   public debugBuffer: string = "";
   public syncLocalDir: boolean = false;
 
-  constructor(manager: Pods, data?: any, config?: PodConfig & { sync_local_dir?: boolean }) {
-    super(manager, data, config);
-    this.syncLocalDir = !!config?.sync_local_dir;
+  constructor(
+    client: BeamClient,
+    config: StubConfig,
+    syncLocalDir: boolean = false
+  ) {
+    super(client, config);
+    this.syncLocalDir = syncLocalDir;
   }
 
   /**
@@ -70,20 +83,32 @@ export class Sandbox extends Pod {
    * Throws: SandboxConnectionError if the connection fails.
    */
   public async connect(id: string): Promise<SandboxInstance> {
-    const resp = await this.manager.client.request({
+    const resp = await this.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods/${id}/connect`,
       data: {},
     });
 
-    const data = resp.data as { ok: boolean; errorMsg?: string; stubId?: string };
+    const data = resp.data as {
+      ok: boolean;
+      errorMsg?: string;
+      stubId?: string;
+    };
     if (!data.ok) {
-      throw new SandboxConnectionError(data.errorMsg || "Failed to connect to sandbox");
+      throw new SandboxConnectionError(
+        data.errorMsg || "Failed to connect to sandbox"
+      );
     }
 
     return new SandboxInstance(
-      { containerId: id, url: "", ok: true, errorMsg: "", stubId: data.stubId || "" },
-      this.manager
+      {
+        containerId: id,
+        url: "",
+        ok: true,
+        errorMsg: "",
+        stubId: data.stubId || "",
+      },
+      this
     );
   }
 
@@ -95,36 +120,64 @@ export class Sandbox extends Pod {
    *
    * Returns: SandboxInstance - A new sandbox instance ready for use.
    */
-  public async create_from_snapshot(snapshotId: string): Promise<SandboxInstance> {
+  public async create_from_snapshot(
+    snapshotId: string
+  ): Promise<SandboxInstance> {
     const parts = snapshotId.split("-");
     const stubId = parts.slice(1, 6).join("-");
 
     // eslint-disable-next-line no-console
     console.log(`Creating sandbox from snapshot: ${snapshotId}`);
 
-    const createResp = await this.manager.client.request({
+    const createResp = await this.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods`,
       data: { stubId, snapshotId },
     });
-    const body = createResp.data as { ok: boolean; containerId: string; errorMsg?: string };
+    const body = createResp.data as {
+      ok: boolean;
+      containerId: string;
+      errorMsg?: string;
+    };
 
     if (!body.ok) {
-      return new SandboxInstance({ stubId, containerId: "", url: "", ok: false, errorMsg: body.errorMsg || "" }, this.manager);
+      return new SandboxInstance(
+        {
+          stubId,
+          containerId: "",
+          url: "",
+          ok: false,
+          errorMsg: body.errorMsg || "",
+        },
+        this
+      );
     }
 
     // eslint-disable-next-line no-console
     console.log(`Sandbox created successfully ===> ${body.containerId}`);
 
-    if ((this.keep_warm_seconds as number) < 0) {
+    if ((this.stub.config.keepWarmSeconds as number) < 0) {
       // eslint-disable-next-line no-console
-      console.log("This sandbox has no timeout, it will run until it is shut down manually.");
+      console.log(
+        "This sandbox has no timeout, it will run until it is shut down manually."
+      );
     } else {
       // eslint-disable-next-line no-console
-      console.log(`This sandbox will timeout after ${this.keep_warm_seconds} seconds.`);
+      console.log(
+        `This sandbox will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
+      );
     }
 
-    return new SandboxInstance({ stubId, containerId: body.containerId, url: "", ok: body.ok, errorMsg: body.errorMsg || "" }, this.manager);
+    return new SandboxInstance(
+      {
+        stubId,
+        containerId: body.containerId,
+        url: "",
+        ok: body.ok,
+        errorMsg: body.errorMsg || "",
+      },
+      this
+    );
   }
 
   /**
@@ -136,64 +189,84 @@ export class Sandbox extends Pod {
    * Returns: SandboxInstance - A new sandbox instance ready for use.
    */
   public async create(entrypoint?: string[]): Promise<SandboxInstance> {
-    this.entrypoint = ["tail", "-f", "/dev/null"];
+    this.stub.config.entrypoint = ["tail", "-f", "/dev/null"];
     if (entrypoint && entrypoint.length) {
-      this.entrypoint = entrypoint;
+      this.stub.config.entrypoint = entrypoint;
     }
 
     const ignorePatterns = this.syncLocalDir ? undefined : ["*"];
 
-    const runner = new RunnerAbstraction({
-      name: this.name,
-      app: this.app,
-      cpu: this.cpu as number,
-      memory: this.memory as number,
-      gpu: this.gpu as any,
-      gpuCount: this.gpu_count,
-      volumes: this.volumes as any,
-      secrets: this.secrets,
-      env: this.env,
-      keepWarmSeconds: this.keep_warm_seconds,
-      authorized: this.authorized,
-      tcp: this.tcp,
-      ports: this.ports,
-      image: this.image as Image,
-      entrypoint: this.entrypoint,
-    });
-
-    runner.setClient(this.manager.client);
-
-    const prepared = await runner.prepareRuntime(undefined, EStubType.Sandbox, true, ignorePatterns);
+    const prepared = await this.stub.prepareRuntime(
+      undefined,
+      EStubType.Sandbox,
+      true,
+      ignorePatterns
+    );
     if (!prepared) {
-      return new SandboxInstance({ containerId: "", url: "", ok: false, errorMsg: "Failed to prepare runtime", stubId: "" }, this.manager);
+      return new SandboxInstance(
+        {
+          containerId: "",
+          url: "",
+          ok: false,
+          errorMsg: "Failed to prepare runtime",
+          stubId: "",
+        },
+        this
+      );
     }
 
     // eslint-disable-next-line no-console
     console.log("Creating sandbox");
 
-    const createResp = await this.manager.client.request({
+    const createResp = await this.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods`,
-      data: { stubId: (runner as any).stubId },
+      data: { stubId: this.stub.stubId },
     });
-    const body = createResp.data as { ok: boolean; containerId: string; errorMsg?: string };
+    const body = createResp.data as {
+      ok: boolean;
+      containerId: string;
+      errorMsg?: string;
+    };
 
     if (!body.ok) {
-      return new SandboxInstance({ stubId: (runner as any).stubId, containerId: "", url: "", ok: false, errorMsg: body.errorMsg || "" }, this.manager);
+      return new SandboxInstance(
+        {
+          stubId: this.stub.stubId!,
+          containerId: "",
+          url: "",
+          ok: false,
+          errorMsg: body.errorMsg || "",
+        },
+        this
+      );
     }
 
     // eslint-disable-next-line no-console
     console.log(`Sandbox created successfully ===> ${body.containerId}`);
 
-    if ((this.keep_warm_seconds as number) < 0) {
+    if ((this.stub.config.keepWarmSeconds as number) < 0) {
       // eslint-disable-next-line no-console
-      console.log("This sandbox has no timeout, it will run until it is shut down manually.");
+      console.log(
+        "This sandbox has no timeout, it will run until it is shut down manually."
+      );
     } else {
       // eslint-disable-next-line no-console
-      console.log(`This sandbox will timeout after ${this.keep_warm_seconds} seconds.`);
+      console.log(
+        `This sandbox will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
+      );
     }
 
-    return new SandboxInstance({ stubId: (runner as any).stubId, containerId: body.containerId, ok: body.ok, errorMsg: body.errorMsg || "", url: "" }, this.manager);
+    return new SandboxInstance(
+      {
+        stubId: this.stub.stubId!,
+        containerId: body.containerId,
+        ok: body.ok,
+        errorMsg: body.errorMsg || "",
+        url: "",
+      },
+      this
+    );
   }
 }
 
@@ -211,33 +284,15 @@ export class Sandbox extends Pod {
  */
 export class SandboxInstance extends PodInstance {
   public stubId: string;
-  public pods: Pods;
   public fs: SandboxFileSystem;
   public process: SandboxProcessManager;
   public terminated: boolean = false;
 
-  constructor(data: { stubId: string } & PodInstanceData, manager: Pods) {
-    super(data, manager);
+  constructor(data: { stubId: string } & PodInstanceData, pod: Pod) {
+    super(data, pod.stub.client, pod);
     this.stubId = data.stubId;
-    this.pods = manager;
     this.fs = new SandboxFileSystem(this);
     this.process = new SandboxProcessManager(this);
-  }
-
-  /**
-   * Terminate the container associated with this sandbox instance.
-   *
-   * This method stops the sandbox container and frees up associated resources.
-   * Once terminated, the sandbox instance cannot be used for further operations.
-   *
-   * Returns: boolean - True if the container was terminated successfully, False otherwise.
-   */
-  public async terminate(): Promise<boolean> {
-    const response = await this.pods.stopPod({ containerId: this.containerId });
-    if (response.ok) {
-      this.terminated = true;
-    }
-    return response.ok;
   }
 
   /**
@@ -249,13 +304,14 @@ export class SandboxInstance extends PodInstance {
     // eslint-disable-next-line no-console
     console.log(`Creating snapshot of: ${this.containerId}`);
 
-    const resp = await this.pods.client.request({
+    const resp = await this.pod.stub.client.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/snapshot`,
       data: { stubId: this.stubId },
     });
     const data = resp.data as PodSandboxSnapshotResponse;
-    if (!data.ok) throw new SandboxProcessError(data.errorMsg || "Failed to snapshot");
+    if (!data.ok)
+      throw new SandboxProcessError(data.errorMsg || "Failed to snapshot");
     return data.snapshotId;
   }
 
@@ -270,20 +326,21 @@ export class SandboxInstance extends PodInstance {
    * Parameters: ttl (number): The number of seconds to keep the sandbox alive. Use -1 for never timeout.
    */
   public async update_ttl(ttl: number): Promise<void> {
-    const resp = await this.pods.client.request({
+    const resp = await this.pod.stub.client.request({
       method: "PATCH",
       url: `/api/v1/gateway/pods/${this.containerId}/ttl`,
       data: { ttl },
     });
     const data = resp.data as PodSandboxUpdateTtlResponse;
-    if (!data.ok) throw new SandboxProcessError(data.errorMsg || "Failed to update TTL");
+    if (!data.ok)
+      throw new SandboxProcessError(data.errorMsg || "Failed to update TTL");
   }
 
   /**
    * Dynamically expose a port to the internet. Returns the public URL.
    */
   public async expose_port(port: number): Promise<string> {
-    const resp = await this.pods.client.request({
+    const resp = await this.pod.stub.client.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/ports/expose`,
       data: { stubId: this.stubId, port },
@@ -314,12 +371,7 @@ export class SandboxProcessResponse {
   public stderr: string;
   public result: string;
 
-  constructor(
-    pid: number,
-    exit_code: number,
-    stdout: string,
-    stderr: string
-  ) {
+  constructor(pid: number, exit_code: number, stdout: string, stderr: string) {
     this.pid = pid;
     this.exit_code = exit_code;
     this.stdout = stdout;
@@ -365,15 +417,18 @@ export class SandboxProcessManager {
         process.stdout.readAll(),
         process.stderr.readAll(),
       ]);
-      return new SandboxProcessResponse(process.pid, process.exit_code, stdoutStr, stderrStr);
+      return new SandboxProcessResponse(
+        process.pid,
+        process.exit_code,
+        stdoutStr,
+        stderrStr
+      );
     }
     return process;
   }
 
   /** Run an arbitrary command in the sandbox. */
-  public async exec(
-    ...args: string[]
-  ): Promise<SandboxProcess> {
+  public async exec(...args: string[]): Promise<SandboxProcess> {
     return this._exec(args);
   }
 
@@ -382,9 +437,11 @@ export class SandboxProcessManager {
     opts?: { cwd?: string; env?: Record<string, string> }
   ): Promise<SandboxProcess> {
     const commandList = Array.isArray(command) ? command : [command];
-    const shellCommand = commandList.map(a => shellQuote(String(a))).join(" ");
+    const shellCommand = commandList
+      .map((a) => shellQuote(String(a)))
+      .join(" ");
 
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/exec`,
       data: {
@@ -411,7 +468,8 @@ export class SandboxProcessManager {
   /** Get a process by its PID. */
   public get_process(pid: number): SandboxProcess {
     const proc = this.processes[pid];
-    if (!proc) throw new SandboxProcessError(`Process with pid ${pid} not found`);
+    if (!proc)
+      throw new SandboxProcessError(`Process with pid ${pid} not found`);
     return proc;
   }
 }
@@ -428,7 +486,10 @@ export class SandboxProcessStream {
   private _closed: boolean = false;
   private _last_output: string = "";
 
-  constructor(process: SandboxProcess, fetch_fn: () => Promise<string> | string) {
+  constructor(
+    process: SandboxProcess,
+    fetch_fn: () => Promise<string> | string
+  ) {
     this.process = process;
     this.fetch_fn = fetch_fn;
   }
@@ -436,7 +497,9 @@ export class SandboxProcessStream {
   public [Symbol.asyncIterator](): AsyncIterableIterator<string> {
     const self = this;
     return {
-      [Symbol.asyncIterator]() { return this; },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
       async next() {
         while (true) {
           if (self._buffer.includes("\n")) {
@@ -467,16 +530,17 @@ export class SandboxProcessStream {
               }
               self._closed = true;
             } else {
-              await new Promise(r => setTimeout(r, 100));
+              await new Promise((r) => setTimeout(r, 100));
             }
           }
         }
-      }
+      },
     } as AsyncIterableIterator<string>;
   }
 
   private async _fetch_next_chunk(): Promise<string> {
-    const output = typeof this.fetch_fn === "function" ? await this.fetch_fn() : "";
+    const output =
+      typeof this.fetch_fn === "function" ? await this.fetch_fn() : "";
     if (output === this._last_output) return "";
     const newOutput = output.slice(this._last_output.length);
     this._last_output = output;
@@ -530,38 +594,45 @@ export class SandboxProcess {
     [this.exit_code, this._status] = await this.status();
     while (this.exit_code < 0) {
       [this.exit_code, this._status] = await this.status();
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
     }
     return this.exit_code;
   }
 
   /** Kill the process. */
   public async kill(): Promise<void> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/kill`,
       data: { pid: this.pid },
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
-    if (!data.ok) throw new SandboxProcessError(data.errorMsg || "Failed to kill process");
+    if (!data.ok)
+      throw new SandboxProcessError(data.errorMsg || "Failed to kill process");
   }
 
   /** Get the status of the process: [exit_code, status]. */
   public async status(): Promise<[number, string]> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "GET",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/status`,
       params: { pid: this.pid },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string; status?: string; exitCode?: number };
-    if (!data.ok) throw new SandboxProcessError(data.errorMsg || "Failed to get status");
+    const data = resp.data as {
+      ok: boolean;
+      errorMsg?: string;
+      status?: string;
+      exitCode?: number;
+    };
+    if (!data.ok)
+      throw new SandboxProcessError(data.errorMsg || "Failed to get status");
     return [data.exitCode ?? -1, data.status || ""];
   }
 
   /** Get a handle to a stream of the process's stdout. */
   public get stdout(): SandboxProcessStream {
     return new SandboxProcessStream(this, async () => {
-      const resp = await this.sandbox_instance.pods.client.request({
+      const resp = await this.sandbox_instance.pod.stub.client.request({
         method: "GET",
         url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stdout`,
         params: { pid: this.pid },
@@ -574,7 +645,7 @@ export class SandboxProcess {
   /** Get a handle to a stream of the process's stderr. */
   public get stderr(): SandboxProcessStream {
     return new SandboxProcessStream(this, async () => {
-      const resp = await this.sandbox_instance.pods.client.request({
+      const resp = await this.sandbox_instance.pod.stub.client.request({
         method: "GET",
         url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stderr`,
         params: { pid: this.pid },
@@ -583,7 +654,6 @@ export class SandboxProcess {
       return data.stderr || "";
     });
   }
-
 
   /** Returns a combined stream of both stdout and stderr. */
   public get logs() {
@@ -602,11 +672,17 @@ export class SandboxProcess {
         const stream = isStdout ? this._stdout : this._stderr;
         const chunk = await (stream as any)._fetch_next_chunk();
         if (chunk) {
-          if (isStdout) this._stdoutBuffer += chunk; else this._stderrBuffer += chunk;
-          while ((isStdout ? this._stdoutBuffer : this._stderrBuffer).includes("\n")) {
-            const parts = (isStdout ? this._stdoutBuffer : this._stderrBuffer).split("\n");
+          if (isStdout) this._stdoutBuffer += chunk;
+          else this._stderrBuffer += chunk;
+          while (
+            (isStdout ? this._stdoutBuffer : this._stderrBuffer).includes("\n")
+          ) {
+            const parts = (
+              isStdout ? this._stdoutBuffer : this._stderrBuffer
+            ).split("\n");
             const line = parts.shift()!;
-            if (isStdout) this._stdoutBuffer = parts.join("\n"); else this._stderrBuffer = parts.join("\n");
+            if (isStdout) this._stdoutBuffer = parts.join("\n");
+            else this._stderrBuffer = parts.join("\n");
             this._queue.push(line + "\n");
           }
         } else {
@@ -615,10 +691,12 @@ export class SandboxProcess {
             const buf = isStdout ? this._stdoutBuffer : this._stderrBuffer;
             if (buf) {
               this._queue.push(buf);
-              if (isStdout) this._stdoutBuffer = ""; else this._stderrBuffer = "";
+              if (isStdout) this._stdoutBuffer = "";
+              else this._stderrBuffer = "";
               return;
             }
-            if (isStdout) this._stdoutExhausted = true; else this._stderrExhausted = true;
+            if (isStdout) this._stdoutExhausted = true;
+            else this._stderrExhausted = true;
           }
         }
       }
@@ -631,22 +709,28 @@ export class SandboxProcess {
       public [Symbol.asyncIterator](): AsyncIterableIterator<string> {
         const that = this;
         return {
-          [Symbol.asyncIterator]() { return this; },
+          [Symbol.asyncIterator]() {
+            return this;
+          },
           async next() {
             while (true) {
               if (!that._queue.length) {
                 await that._fill_queue();
-                if (!that._queue.length && that._stdoutExhausted && that._stderrExhausted) {
+                if (
+                  !that._queue.length &&
+                  that._stdoutExhausted &&
+                  that._stderrExhausted
+                ) {
                   return { value: undefined as any, done: true };
                 }
                 if (!that._queue.length) {
-                  await new Promise(r => setTimeout(r, 100));
+                  await new Promise((r) => setTimeout(r, 100));
                   continue;
                 }
               }
               return { value: that._queue.shift()!, done: false };
             }
-          }
+          },
         } as AsyncIterableIterator<string>;
       }
 
@@ -670,7 +754,14 @@ export class SandboxFileInfo {
   public group: string;
 
   constructor(init: {
-    name: string; is_dir: boolean; size: number; mode: number; mod_time: number; permissions: number; owner: string; group: string;
+    name: string;
+    is_dir: boolean;
+    size: number;
+    mode: number;
+    mod_time: number;
+    permissions: number;
+    owner: string;
+    group: string;
   }) {
     this.name = init.name;
     this.is_dir = init.is_dir;
@@ -689,13 +780,24 @@ export class SandboxFileInfo {
 }
 
 /** A position in a file. */
-export class SandboxFilePosition { constructor(public line: number, public column: number) { } }
+export class SandboxFilePosition {
+  constructor(public line: number, public column: number) {}
+}
 /** A range in a file. */
-export class SandboxFileSearchRange { constructor(public start: SandboxFilePosition, public end: SandboxFilePosition) { } }
+export class SandboxFileSearchRange {
+  constructor(
+    public start: SandboxFilePosition,
+    public end: SandboxFilePosition
+  ) {}
+}
 /** A match in a file. */
-export class SandboxFileSearchMatch { constructor(public range: SandboxFileSearchRange, public content: string) { } }
+export class SandboxFileSearchMatch {
+  constructor(public range: SandboxFileSearchRange, public content: string) {}
+}
 /** A search result in a file. */
-export class SandboxFileSearchResult { constructor(public path: string, public matches: SandboxFileSearchMatch[]) { } }
+export class SandboxFileSearchResult {
+  constructor(public path: string, public matches: SandboxFileSearchMatch[]) {}
+}
 
 /**
  * File system interface for managing files within a sandbox.
@@ -704,12 +806,17 @@ export class SandboxFileSearchResult { constructor(public path: string, public m
  */
 export class SandboxFileSystem {
   private sandbox_instance: SandboxInstance;
-  constructor(sandbox_instance: SandboxInstance) { this.sandbox_instance = sandbox_instance; }
+  constructor(sandbox_instance: SandboxInstance) {
+    this.sandbox_instance = sandbox_instance;
+  }
 
   /** Upload a local file to the sandbox. */
-  public async upload_file(local_path: string, sandbox_path: string): Promise<void> {
+  public async upload_file(
+    local_path: string,
+    sandbox_path: string
+  ): Promise<void> {
     const content = fs.readFileSync(local_path);
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/upload`,
       data: {
@@ -719,30 +826,46 @@ export class SandboxFileSystem {
       },
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
-    if (!data.ok) throw new SandboxFileSystemError(data.errorMsg || "Failed to upload file");
+    if (!data.ok)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to upload file"
+      );
   }
 
   /** Download a file from the sandbox to a local path. */
-  public async download_file(sandbox_path: string, local_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pods.client.request({
+  public async download_file(
+    sandbox_path: string,
+    local_path: string
+  ): Promise<void> {
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "GET",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/download/${encodeURIComponent(sandbox_path)}`,
+      url: `api/v1/gateway/pods/${
+        this.sandbox_instance.containerId
+      }/files/download/${encodeURIComponent(sandbox_path)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
-    if (!data.ok || !data.data) throw new SandboxFileSystemError(data.errorMsg || "Failed to download file");
+    if (!data.ok || !data.data)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to download file"
+      );
     const buf = Buffer.from(data.data, "base64");
     fs.writeFileSync(local_path, buf);
   }
 
   /** Get the metadata of a file in the sandbox. */
   public async stat_file(sandbox_path: string): Promise<SandboxFileInfo> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "GET",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/stat`,
       params: { containerPath: sandbox_path },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string; fileInfo?: any };
-    if (!data.ok || !data.fileInfo) throw new SandboxFileSystemError(data.errorMsg || "Failed to stat file");
+    const data = resp.data as {
+      ok: boolean;
+      errorMsg?: string;
+      fileInfo?: any;
+    };
+    if (!data.ok || !data.fileInfo)
+      throw new SandboxFileSystemError(data.errorMsg || "Failed to stat file");
     return new SandboxFileInfo({
       name: data.fileInfo.name,
       is_dir: data.fileInfo.isDir,
@@ -757,76 +880,114 @@ export class SandboxFileSystem {
 
   /** List the files in a directory in the sandbox. */
   public async list_files(sandbox_path: string): Promise<SandboxFileInfo[]> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "GET",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/files`,
       params: { containerPath: sandbox_path },
     });
     const data = resp.data as PodSandboxListFilesResponse;
-    if (!data.ok || !data.files) throw new SandboxFileSystemError(data.errorMsg || "Failed to list files");
-    return data.files.map((file: any) => new SandboxFileInfo({
-      name: file.name,
-      is_dir: !!file.isDir,
-      size: Number(file.size),
-      mode: Number(file.mode),
-      mod_time: Number(file.modTime),
-      owner: file.owner,
-      group: file.group,
-      permissions: Number(file.permissions),
-    }));
+    if (!data.ok || !data.files)
+      throw new SandboxFileSystemError(data.errorMsg || "Failed to list files");
+    return data.files.map(
+      (file: any) =>
+        new SandboxFileInfo({
+          name: file.name,
+          is_dir: !!file.isDir,
+          size: Number(file.size),
+          mode: Number(file.mode),
+          mod_time: Number(file.modTime),
+          owner: file.owner,
+          group: file.group,
+          permissions: Number(file.permissions),
+        })
+    );
   }
 
   /** Create a directory in the sandbox. */
   public async create_directory(sandbox_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/directories`,
       data: { containerPath: sandbox_path, mode: 0o755 },
     });
     const data = resp.data as PodSandboxCreateDirectoryResponse;
-    if (!data.ok) throw new SandboxFileSystemError(data.errorMsg || "Failed to create directory");
+    if (!data.ok)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to create directory"
+      );
   }
 
   /** Delete a directory in the sandbox. */
   public async delete_directory(sandbox_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "DELETE",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/directories/${encodeURIComponent(sandbox_path)}`,
+      url: `api/v1/gateway/pods/${
+        this.sandbox_instance.containerId
+      }/directories/${encodeURIComponent(sandbox_path)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
-    if (!data.ok) throw new SandboxFileSystemError(data.errorMsg || "Failed to delete directory");
+    if (!data.ok)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to delete directory"
+      );
   }
 
   /** Delete a file in the sandbox. */
   public async delete_file(sandbox_path: string): Promise<void> {
-    const resp = await this.sandbox_instance.pods.client.request({
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "DELETE",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/${encodeURIComponent(sandbox_path)}`,
+      url: `api/v1/gateway/pods/${
+        this.sandbox_instance.containerId
+      }/files/${encodeURIComponent(sandbox_path)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
-    if (!data.ok) throw new SandboxFileSystemError(data.errorMsg || "Failed to delete file");
+    if (!data.ok)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to delete file"
+      );
   }
 
   /** Replace a string in all files in a directory. */
-  public async replace_in_files(sandbox_path: string, old_string: string, new_string: string): Promise<void> {
-    const resp = await this.sandbox_instance.pods.client.request({
+  public async replace_in_files(
+    sandbox_path: string,
+    old_string: string,
+    new_string: string
+  ): Promise<void> {
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/replace`,
-      data: { containerPath: sandbox_path, pattern: old_string, newString: new_string },
+      data: {
+        containerPath: sandbox_path,
+        pattern: old_string,
+        newString: new_string,
+      },
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
-    if (!data.ok) throw new SandboxFileSystemError(data.errorMsg || "Failed to replace in files");
+    if (!data.ok)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to replace in files"
+      );
   }
 
   /** Find files matching a pattern in the sandbox. */
-  public async find_in_files(sandbox_path: string, pattern: string): Promise<SandboxFileSearchResult[]> {
-    const resp = await this.sandbox_instance.pods.client.request({
+  public async find_in_files(
+    sandbox_path: string,
+    pattern: string
+  ): Promise<SandboxFileSearchResult[]> {
+    const resp = await this.sandbox_instance.pod.stub.client.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/find`,
       data: { containerPath: sandbox_path, pattern },
     });
-    const data = resp.data as { ok: boolean; errorMsg?: string; results?: any[] };
-    if (!data.ok || !data.results) throw new SandboxFileSystemError(data.errorMsg || "Failed to find in files");
+    const data = resp.data as {
+      ok: boolean;
+      errorMsg?: string;
+      results?: any[];
+    };
+    if (!data.ok || !data.results)
+      throw new SandboxFileSystemError(
+        data.errorMsg || "Failed to find in files"
+      );
 
     const results: SandboxFileSearchResult[] = [];
     for (const result of data.results) {
@@ -835,8 +996,14 @@ export class SandboxFileSystem {
         matches.push(
           new SandboxFileSearchMatch(
             new SandboxFileSearchRange(
-              new SandboxFilePosition(match.range.start.line, match.range.start.column),
-              new SandboxFilePosition(match.range.end.line, match.range.end.column)
+              new SandboxFilePosition(
+                match.range.start.line,
+                match.range.start.column
+              ),
+              new SandboxFilePosition(
+                match.range.end.line,
+                match.range.end.column
+              )
             ),
             match.content
           )
@@ -848,5 +1015,3 @@ export class SandboxFileSystem {
     return results;
   }
 }
-
-

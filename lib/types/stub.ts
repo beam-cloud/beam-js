@@ -54,11 +54,6 @@ export interface GetOrCreateStubRequest {
   memory: number;
   gpu: string;
   gpuCount: number;
-  handler: string;
-  onStart: string;
-  onDeploy: string;
-  onDeployStubId: string;
-  callbackUrl: string;
   keepWarmSeconds: number;
   workers: number;
   maxPendingTasks: number;
@@ -71,8 +66,7 @@ export interface GetOrCreateStubRequest {
   taskPolicy: TaskPolicyConfig;
   concurrentRequests: number;
   checkpointEnabled: boolean;
-  extra: string;
-  entrypoint?: string[];
+  entrypoint: string[];
   ports: number[];
   pricing?: PricingPolicyConfig;
   inputs?: Schema;

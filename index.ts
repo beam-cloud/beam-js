@@ -4,7 +4,7 @@ export default BeamClient;
 export namespace BeamClient {}
 export { BeamClient };
 
-export { Images, Image } from "./lib/resources/image";
+export { Images, Image } from "./lib/resources/abstraction/image";
 export type {
   ImageConfig,
   ImageBuildResult,

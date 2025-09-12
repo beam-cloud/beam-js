@@ -1,5 +1,10 @@
 import BaseData from "./base";
-import { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias } from "./common";
+import {
+  PythonVersion,
+  PythonVersionAlias,
+  GpuType,
+  GpuTypeAlias,
+} from "./common";
 
 // Re-export for backwards compatibility
 export { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias };
@@ -99,37 +104,33 @@ export interface ImageBuildResult {
 }
 
 export interface ImageConfig {
-  pythonVersion?: PythonVersionAlias | string;
-  pythonPackages?: string[] | string;
-  commands?: string[];
-  baseImage?: string;
-  baseImageCreds?: ImageCredentials;
-  envVars?: string[] | Record<string, string> | string;
-  snapshotId?: string;
-}
-
-export interface ImageData extends BaseData {
-  pythonVersion: string;
-  pythonPackages: string[];
+  pythonVersion: PythonVersionAlias | string;
+  pythonPackages: string[] | string;
   commands: string[];
-  buildSteps: BuildStep[];
   baseImage: string;
-  baseImageCreds: Record<string, string>;
-  envVars: string[];
+  baseImageCreds: ImageCredentials;
+  envVars: string[] | Record<string, string> | string;
   secrets: string[];
   dockerfile: string;
-  buildCtxObject: string;
   gpu: string;
   ignorePython: boolean;
-  snapshotId: string;
   includeFilesPatterns: string[];
+}
+
+export interface ImageData {
+  id: string;
+  buildCtxObject: string;
+  snapshotId: string;
 }
 
 export class ImageCredentialValueNotFound extends Error {
   public keyName: string;
 
   constructor(keyName: string, message?: string) {
-    super(message || `Did not find the environment variable ${keyName}. Did you forget to set it?`);
+    super(
+      message ||
+        `Did not find the environment variable ${keyName}. Did you forget to set it?`
+    );
     this.name = "ImageCredentialValueNotFound";
     this.keyName = keyName;
   }
