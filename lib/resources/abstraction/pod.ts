@@ -4,7 +4,7 @@ import {
   PodInstanceData,
   EPodStatus,
 } from "../../types/pod";
-import { Stub, CreateStubConfig } from "./stub";
+import { StubBuilder, CreateStubConfig } from "./stub";
 import {
   EStubType,
   DeployStubRequest,
@@ -16,13 +16,13 @@ import beamClient from "../..";
 let USER_CODE_DIR = "/mnt/code";
 
 export class Pod {
-  public stub: Stub;
+  public stub: StubBuilder;
   public containerId: string;
   public status: EPodStatus;
   public url?: string;
 
   constructor(config: CreateStubConfig) {
-    this.stub = new Stub(config);
+    this.stub = new StubBuilder(config);
     this.containerId = "";
     this.status = EPodStatus.PENDING;
     this.url = undefined;

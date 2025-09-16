@@ -70,7 +70,7 @@ function setStubCreatedForWorkspace(value: boolean): void {
   _stubCreatedForWorkspace = value;
 }
 
-export class Stub {
+export class StubBuilder {
   // Internal state
   public syncer: FileSyncer;
   public config: StubConfig;

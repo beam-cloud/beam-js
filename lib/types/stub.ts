@@ -3,6 +3,15 @@ import { AutoscalerConfig } from "./autoscaler";
 import { TaskPolicyConfig } from "./task";
 import { PricingPolicyConfig } from "./pricing";
 import { Schema } from "./schema";
+import BaseData from "./base";
+
+export interface Stub extends BaseData {
+  id: string;
+  config: string;
+  config_version: number;
+  name: string;
+  type: EStubType;
+}
 
 export enum EStubType {
   TaskQueueDeployment = "taskqueue/deployment",

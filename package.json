@@ -11,7 +11,6 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE && chmod +x ./scripts/fix-common-js-exports.sh && ./scripts/fix-common-js-exports.sh",
-    "prepublishOnly": "echo 'to publish, run yarn build && (cd dist; yarn publish)' && exit 1",
     "test": "jest"
   },
   "dependencies": {
