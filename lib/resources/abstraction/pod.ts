@@ -4,7 +4,7 @@ import {
   CreatePodResponse,
   PodInstanceData,
 } from "../../types/pod";
-import { Stub, StubConfig } from "./stub";
+import { Stub, StubConfigOnCreate } from "./stub";
 import {
   EStubType,
   DeployStubRequest,
@@ -19,7 +19,7 @@ export class Pod {
   public data: PodData;
   public stub: Stub;
 
-  constructor(config: StubConfig) {
+  constructor(config: StubConfigOnCreate) {
     this.stub = new Stub(config);
   }
 

@@ -1,4 +1,4 @@
-import BeamClient from "index";
+import BeamClient from "../";
 import {
   GetOrCreateVolumeRequest,
   GetOrCreateVolumeResponse,

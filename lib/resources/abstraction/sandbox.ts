@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { Pod, PodInstance } from "./pod";
-import { StubConfig } from "./stub";
+import { StubConfigOnCreate } from "./stub";
 import { EStubType } from "../../types/stub";
 import type {
   PodSandboxSnapshotResponse,
@@ -51,7 +51,7 @@ export class Sandbox extends Pod {
   public debugBuffer: string = "";
   public syncLocalDir: boolean = false;
 
-  constructor(config: StubConfig, syncLocalDir: boolean = false) {
+  constructor(config: StubConfigOnCreate, syncLocalDir: boolean = false) {
     super(config);
     this.syncLocalDir = syncLocalDir;
   }

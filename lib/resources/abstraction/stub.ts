@@ -23,7 +23,8 @@ import {
 import { camelCaseToSnakeCaseKeys } from "../../util";
 
 export interface StubConfig {
-  app?: string;
+  name: string;
+  app: string;
   cpu: number | string;
   memory: number | string;
   gpu: GpuTypeAlias | GpuTypeAlias[] | "string";
@@ -33,14 +34,13 @@ export interface StubConfig {
   concurrentRequests: number;
   keepWarmSeconds: number;
   maxPendingTasks: number;
-  retries?: number;
-  timeout?: number;
+  retries: number;
+  timeout: number;
   volumes: Volume[];
   secrets: SecretVar[];
   env: Record<string, string> | string[];
-  callbackUrl?: string;
+  callbackUrl: string;
   authorized: boolean;
-  name: string;
   autoscaler: Autoscaler;
   taskPolicy: TaskPolicy;
   checkpointEnabled: boolean;
@@ -50,6 +50,10 @@ export interface StubConfig {
   inputs?: Schema;
   outputs?: Schema;
   tcp: boolean;
+}
+
+export interface StubConfigOnCreate extends Partial<StubConfig> {
+  name: string;
 }
 
 // Global stub creation state management
@@ -80,7 +84,7 @@ export class Stub {
 
   constructor({
     name,
-    app,
+    app = undefined,
     authorized = true,
     image,
     callbackUrl = "",
@@ -104,7 +108,7 @@ export class Stub {
     inputs = undefined,
     outputs = undefined,
     tcp = false,
-  }: StubConfig) {
+  }: StubConfigOnCreate) {
     this.config = {} as StubConfig;
     this.config.name = name;
     this.config.app = app || name;
@@ -178,7 +182,7 @@ export class Stub {
           url = url.replace("http://", "").replace("https://", "") + ":443";
         }
 
-        this.config.ports.forEach((port) => {
+        this.config.ports?.forEach((port) => {
           const urlText = url.replace("<PORT>", port.toString());
           console.log(`\tPort ${port}: ${urlText}`);
         });
