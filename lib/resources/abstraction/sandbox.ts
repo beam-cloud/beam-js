@@ -347,20 +347,12 @@ export class SandboxInstance extends PodInstance {
  * - stderr (string): The full standard error output captured for the process.
  * - result (string): Combined stdout and stderr output as a string.
  */
-export class SandboxProcessResponse {
-  public pid: number;
-  public exit_code: number;
-  public stdout: string;
-  public stderr: string;
-  public result: string;
-
-  constructor(pid: number, exit_code: number, stdout: string, stderr: string) {
-    this.pid = pid;
-    this.exit_code = exit_code;
-    this.stdout = stdout;
-    this.stderr = stderr;
-    this.result = stdout + stderr;
-  }
+export interface SandboxProcessResponse {
+  pid: number;
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  result: string;
 }
 
 /**
@@ -400,12 +392,13 @@ export class SandboxProcessManager {
         process.stdout.readAll(),
         process.stderr.readAll(),
       ]);
-      return new SandboxProcessResponse(
-        process.pid,
-        process.exit_code,
-        stdoutStr,
-        stderrStr
-      );
+      return {
+        pid: process.pid,
+        exit_code: process.exit_code,
+        stdout: stdoutStr,
+        stderr: stderrStr,
+        result: stdoutStr + stderrStr,
+      };
     }
     return process;
   }
