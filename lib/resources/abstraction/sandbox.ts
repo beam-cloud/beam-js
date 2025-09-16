@@ -103,7 +103,7 @@ export class Sandbox extends Pod {
    *
    * Returns: SandboxInstance - A new sandbox instance ready for use.
    */
-  public async create_from_snapshot(
+  public async createFromSnapshot(
     snapshotId: string
   ): Promise<SandboxInstance> {
     const parts = snapshotId.split("-");
@@ -313,7 +313,7 @@ export class SandboxInstance extends PodInstance {
    *
    * Parameters: ttl (number): The number of seconds to keep the sandbox alive. Use -1 for never timeout.
    */
-  public async update_ttl(ttl: number): Promise<void> {
+  public async updateTtl(ttl: number): Promise<void> {
     const resp = await beamClient.request({
       method: "PATCH",
       url: `/api/v1/gateway/pods/${this.containerId}/ttl`,
@@ -327,7 +327,7 @@ export class SandboxInstance extends PodInstance {
   /**
    * Dynamically expose a port to the internet. Returns the public URL.
    */
-  public async expose_port(port: number): Promise<string> {
+  public async exposePort(port: number): Promise<string> {
     const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/ports/expose`,
@@ -347,7 +347,7 @@ export class SandboxInstance extends PodInstance {
    * - cwd (string | undefined): Working directory.
    * - env (Record<string,string> | undefined): Environment variables.
    */
-  public async run_code(
+  public async runCode(
     code: string,
     blocking: boolean = true,
     cwd?: string,
@@ -362,7 +362,7 @@ export class SandboxInstance extends PodInstance {
       ]);
       return {
         pid: process.pid,
-        exit_code: process.exit_code,
+        exitCode: process.exitCode,
         stdout: stdoutStr,
         stderr: stderrStr,
         result: stdoutStr + stderrStr,
@@ -405,12 +405,12 @@ export class SandboxInstance extends PodInstance {
   }
 
   /** List all processes running in the sandbox. */
-  public list_processes(): SandboxProcess[] {
+  public listProcesses(): SandboxProcess[] {
     return Object.values(this.processes);
   }
 
   /** Get a process by its PID. */
-  public get_process(pid: number): SandboxProcess {
+  public getProcess(pid: number): SandboxProcess {
     const proc = this.processes[pid];
     if (!proc)
       throw new SandboxProcessError(`Process with pid ${pid} not found`);
@@ -433,7 +433,7 @@ export class SandboxInstance extends PodInstance {
  */
 export interface SandboxProcessResponse {
   pid: number;
-  exit_code: number;
+  exitCode: number;
   stdout: string;
   stderr: string;
   result: string;
@@ -453,10 +453,10 @@ export class SandboxProcessStream {
 
   constructor(
     process: SandboxProcess,
-    fetch_fn: () => Promise<string> | string
+    fetchFn: () => Promise<string> | string
   ) {
     this.process = process;
-    this.fetch_fn = fetch_fn;
+    this.fetch_fn = fetchFn;
   }
 
   public [Symbol.asyncIterator](): AsyncIterableIterator<string> {
@@ -546,22 +546,22 @@ export class SandboxProcessStream {
 export class SandboxProcess {
   public sandbox_instance: SandboxInstance;
   public pid: number;
-  public exit_code: number = -1;
+  public exitCode: number = -1;
   private _status: string = "";
 
-  constructor(sandbox_instance: SandboxInstance, pid: number) {
-    this.sandbox_instance = sandbox_instance;
+  constructor(sandboxInstance: SandboxInstance, pid: number) {
+    this.sandbox_instance = sandboxInstance;
     this.pid = pid;
   }
 
   /** Wait for the process to complete and return the exit code. */
   public async wait(): Promise<number> {
-    [this.exit_code, this._status] = await this.status();
-    while (this.exit_code < 0) {
-      [this.exit_code, this._status] = await this.status();
+    [this.exitCode, this._status] = await this.status();
+    while (this.exitCode < 0) {
+      [this.exitCode, this._status] = await this.status();
       await new Promise((r) => setTimeout(r, 100));
     }
-    return this.exit_code;
+    return this.exitCode;
   }
 
   /** Kill the process. */
@@ -710,29 +710,29 @@ export class SandboxProcess {
 /** Metadata of a file in the sandbox. */
 export class SandboxFileInfo {
   public name: string;
-  public is_dir: boolean;
+  public isDir: boolean;
   public size: number;
   public mode: number;
-  public mod_time: number;
+  public modTime: number;
   public permissions: number;
   public owner: string;
   public group: string;
 
   constructor(init: {
     name: string;
-    is_dir: boolean;
+    isDir: boolean;
     size: number;
     mode: number;
-    mod_time: number;
+    modTime: number;
     permissions: number;
     owner: string;
     group: string;
   }) {
     this.name = init.name;
-    this.is_dir = init.is_dir;
+    this.isDir = init.isDir;
     this.size = init.size;
     this.mode = init.mode;
-    this.mod_time = init.mod_time;
+    this.modTime = init.modTime;
     this.permissions = init.permissions;
     this.owner = init.owner;
     this.group = init.group;
@@ -740,7 +740,7 @@ export class SandboxFileInfo {
 
   public toString(): string {
     const octal = (this.permissions & 0o7777).toString(8);
-    return `SandboxFileInfo(name='${this.name}', is_dir=${this.is_dir}, size=${this.size}, mode=${this.mode}, mod_time=${this.mod_time}, permissions=${octal}, owner='${this.owner}', group='${this.group}')`;
+    return `SandboxFileInfo(name='${this.name}', isDir=${this.isDir}, size=${this.size}, mode=${this.mode}, modTime=${this.modTime}, permissions=${octal}, owner='${this.owner}', group='${this.group}')`;
   }
 }
 
@@ -771,21 +771,21 @@ export class SandboxFileSearchResult {
  */
 export class SandboxFileSystem {
   private sandbox_instance: SandboxInstance;
-  constructor(sandbox_instance: SandboxInstance) {
-    this.sandbox_instance = sandbox_instance;
+  constructor(sandboxInstance: SandboxInstance) {
+    this.sandbox_instance = sandboxInstance;
   }
 
   /** Upload a local file to the sandbox. */
-  public async upload_file(
-    local_path: string,
-    sandbox_path: string
+  public async uploadFile(
+    localPath: string,
+    sandboxPath: string
   ): Promise<void> {
-    const content = fs.readFileSync(local_path);
+    const content = fs.readFileSync(localPath);
     const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/upload`,
       data: {
-        containerPath: sandbox_path,
+        containerPath: sandboxPath,
         mode: 0o644,
         data: content.toString("base64"),
       },
@@ -798,15 +798,15 @@ export class SandboxFileSystem {
   }
 
   /** Download a file from the sandbox to a local path. */
-  public async download_file(
-    sandbox_path: string,
-    local_path: string
+  public async downloadFile(
+    sandboxPath: string,
+    localPath: string
   ): Promise<void> {
     const resp = await beamClient.request({
       method: "GET",
       url: `api/v1/gateway/pods/${
         this.sandbox_instance.containerId
-      }/files/download/${encodeURIComponent(sandbox_path)}`,
+      }/files/download/${encodeURIComponent(sandboxPath)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
     if (!data.ok || !data.data)
@@ -814,15 +814,15 @@ export class SandboxFileSystem {
         data.errorMsg || "Failed to download file"
       );
     const buf = Buffer.from(data.data, "base64");
-    fs.writeFileSync(local_path, buf);
+    fs.writeFileSync(localPath, buf);
   }
 
   /** Get the metadata of a file in the sandbox. */
-  public async stat_file(sandbox_path: string): Promise<SandboxFileInfo> {
+  public async statFile(sandboxPath: string): Promise<SandboxFileInfo> {
     const resp = await beamClient.request({
       method: "GET",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/stat`,
-      params: { containerPath: sandbox_path },
+      params: { containerPath: sandboxPath },
     });
     const data = resp.data as {
       ok: boolean;
@@ -833,10 +833,10 @@ export class SandboxFileSystem {
       throw new SandboxFileSystemError(data.errorMsg || "Failed to stat file");
     return new SandboxFileInfo({
       name: data.fileInfo.name,
-      is_dir: data.fileInfo.isDir,
+      isDir: data.fileInfo.isDir,
       size: Number(data.fileInfo.size),
       mode: Number(data.fileInfo.mode),
-      mod_time: Number(data.fileInfo.modTime),
+      modTime: Number(data.fileInfo.modTime),
       owner: data.fileInfo.owner,
       group: data.fileInfo.group,
       permissions: Number(data.fileInfo.permissions),
@@ -844,11 +844,11 @@ export class SandboxFileSystem {
   }
 
   /** List the files in a directory in the sandbox. */
-  public async list_files(sandbox_path: string): Promise<SandboxFileInfo[]> {
+  public async listFiles(sandboxPath: string): Promise<SandboxFileInfo[]> {
     const resp = await beamClient.request({
       method: "GET",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/files`,
-      params: { containerPath: sandbox_path },
+      params: { containerPath: sandboxPath },
     });
     const data = resp.data as PodSandboxListFilesResponse;
     if (!data.ok || !data.files)
@@ -857,10 +857,10 @@ export class SandboxFileSystem {
       (file: any) =>
         new SandboxFileInfo({
           name: file.name,
-          is_dir: !!file.isDir,
+          isDir: !!file.isDir,
           size: Number(file.size),
           mode: Number(file.mode),
-          mod_time: Number(file.modTime),
+          modTime: Number(file.modTime),
           owner: file.owner,
           group: file.group,
           permissions: Number(file.permissions),
@@ -869,11 +869,11 @@ export class SandboxFileSystem {
   }
 
   /** Create a directory in the sandbox. */
-  public async create_directory(sandbox_path: string): Promise<void> {
+  public async createDirectory(sandboxPath: string): Promise<void> {
     const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/directories`,
-      data: { containerPath: sandbox_path, mode: 0o755 },
+      data: { containerPath: sandboxPath, mode: 0o755 },
     });
     const data = resp.data as PodSandboxCreateDirectoryResponse;
     if (!data.ok)
@@ -883,12 +883,12 @@ export class SandboxFileSystem {
   }
 
   /** Delete a directory in the sandbox. */
-  public async delete_directory(sandbox_path: string): Promise<void> {
+  public async deleteDirectory(sandboxPath: string): Promise<void> {
     const resp = await beamClient.request({
       method: "DELETE",
       url: `api/v1/gateway/pods/${
         this.sandbox_instance.containerId
-      }/directories/${encodeURIComponent(sandbox_path)}`,
+      }/directories/${encodeURIComponent(sandboxPath)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
     if (!data.ok)
@@ -898,12 +898,12 @@ export class SandboxFileSystem {
   }
 
   /** Delete a file in the sandbox. */
-  public async delete_file(sandbox_path: string): Promise<void> {
+  public async deleteFile(sandboxPath: string): Promise<void> {
     const resp = await beamClient.request({
       method: "DELETE",
       url: `api/v1/gateway/pods/${
         this.sandbox_instance.containerId
-      }/files/${encodeURIComponent(sandbox_path)}`,
+      }/files/${encodeURIComponent(sandboxPath)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
     if (!data.ok)
@@ -913,18 +913,18 @@ export class SandboxFileSystem {
   }
 
   /** Replace a string in all files in a directory. */
-  public async replace_in_files(
-    sandbox_path: string,
-    old_string: string,
-    new_string: string
+  public async replaceInFiles(
+    sandboxPath: string,
+    oldString: string,
+    newString: string
   ): Promise<void> {
     const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/replace`,
       data: {
-        containerPath: sandbox_path,
-        pattern: old_string,
-        newString: new_string,
+        containerPath: sandboxPath,
+        pattern: oldString,
+        newString: newString,
       },
     });
     const data = resp.data as { ok: boolean; errorMsg?: string };
@@ -935,14 +935,14 @@ export class SandboxFileSystem {
   }
 
   /** Find files matching a pattern in the sandbox. */
-  public async find_in_files(
-    sandbox_path: string,
+  public async findInFiles(
+    sandboxPath: string,
     pattern: string
   ): Promise<SandboxFileSearchResult[]> {
     const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/find`,
-      data: { containerPath: sandbox_path, pattern },
+      data: { containerPath: sandboxPath, pattern },
     });
     const data = resp.data as {
       ok: boolean;

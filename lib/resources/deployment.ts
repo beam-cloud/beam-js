@@ -176,6 +176,6 @@ export class Deployment implements ResourceObject<DeploymentData> {
   }
 
   public get stubDeploymentType(): string {
-    return this.data.stub_type.split("/")[0];
+    return this.data.stubType.split("/")[0];
   }
 }

@@ -2,7 +2,7 @@ import BaseData from "./base";
 
 export interface VolumeData extends BaseData {
   name: string;
-  mount_path: string;
+  mountPath: string;
 }
 
 export interface GetOrCreateVolumeRequest {
@@ -18,7 +18,7 @@ export interface GetOrCreateVolumeResponse {
 // Volume export format for stub requests - matches Python VolumeGateway
 export interface VolumeGateway {
   id?: string;
-  mount_path: string;
+  mountPath: string;
   config?: VolumeConfigGateway;
 }
 

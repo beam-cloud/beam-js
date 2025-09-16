@@ -433,7 +433,7 @@ export class Image {
       throw new Error("File sync failed");
     }
 
-    return result.object_id;
+    return result.objectId;
   }
 
   getCredentialsFromEnv(): Record<string, string> {

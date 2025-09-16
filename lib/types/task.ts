@@ -30,13 +30,13 @@ export class TaskPolicy {
 
 export interface TaskData extends BaseData {
   status: ETaskStatus;
-  container_id: string;
-  started_at: string;
-  ended_at: string;
-  stub_id: string;
-  stub_name: string;
-  workspace_id: string;
-  workspace_name: string;
+  containerId: string;
+  startedAt: string;
+  endedAt: string;
+  stubId: string;
+  stubName: string;
+  workspaceId: string;
+  workspaceName: string;
 }
 
 export interface ListTasksResponse {

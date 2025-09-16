@@ -45,9 +45,7 @@ export class Volume {
       const response = await BeamClient.request({
         method: "POST",
         url: "/api/v1/gateway/volumes",
-        data: {
-          name: this.name,
-        } as GetOrCreateVolumeRequest,
+        data: { name: this.name, mount_path: this.mountPath },
       });
 
       const data = response.data as GetOrCreateVolumeResponse;
@@ -71,7 +69,7 @@ export class Volume {
   public export(): VolumeGateway {
     return {
       id: this.volumeId,
-      mount_path: this.mountPath,
+      mountPath: this.mountPath,
     };
   }
 }

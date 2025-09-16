@@ -17,13 +17,13 @@ let USER_CODE_DIR = "/mnt/code";
 
 export class Pod {
   public stub: Stub;
-  public container_id: string;
+  public containerId: string;
   public status: EPodStatus;
   public url?: string;
 
   constructor(config: CreateStubConfig) {
     this.stub = new Stub(config);
-    this.container_id = "";
+    this.containerId = "";
     this.status = EPodStatus.PENDING;
     this.url = undefined;
   }
@@ -118,7 +118,7 @@ export class Pod {
    */
   public async deploy(
     name?: string
-  ): Promise<{ deployment_details: Record<string, any>; success: boolean }> {
+  ): Promise<{ deploymentDetails: Record<string, any>; success: boolean }> {
     this.stub.config.name = name || this.stub.config.name;
     if (!this.stub.config.name) {
       console.error(
@@ -159,17 +159,17 @@ export class Pod {
       }
 
       return {
-        deployment_details: {
-          deployment_id: deployRes.deploymentId,
-          deployment_name: this.stub.config.name,
-          invoke_url: deployRes.invokeUrl,
+        deploymentDetails: {
+          deploymentId: deployRes.deploymentId,
+          deploymentName: this.stub.config.name,
+          invokeUrl: deployRes.invokeUrl,
           version: deployRes.version,
         },
         success: deployRes.ok,
       };
     } catch (error) {
       console.error("Failed to deploy pod:", error);
-      return { deployment_details: {}, success: false };
+      return { deploymentDetails: {}, success: false };
     }
   }
 

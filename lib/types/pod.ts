@@ -14,7 +14,7 @@ export enum EPodStatus {
 
 export interface PodVolume {
   name: string;
-  mount_path: string;
+  mountPath: string;
 }
 
 export interface PodInstanceData {

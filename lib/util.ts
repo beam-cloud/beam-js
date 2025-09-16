@@ -1,16 +1,21 @@
 import { Schema } from "lib";
-import { GpuTypeAlias } from "./types/image";
+import { GpuType } from "./types/image";
 
 export const snakeCaseToCamelCaseKeys = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map((o) => {
+      if (typeof o === "object" && o !== null) {
+        return snakeCaseToCamelCaseKeys(o);
+      }
+      return o;
+    });
+  }
+
   const newObj: any = {};
   Object.keys(obj).forEach((key) => {
     const initialKey = String(key);
     const currentObject = obj[initialKey];
-    if (
-      typeof currentObject === "object" &&
-      currentObject !== null &&
-      !Array.isArray(currentObject)
-    ) {
+    if (typeof currentObject === "object" && currentObject !== null) {
       newObj[key.replace(/_([a-z])/g, (g) => g[1].toUpperCase())] =
         snakeCaseToCamelCaseKeys(currentObject);
     } else {
@@ -22,15 +27,20 @@ export const snakeCaseToCamelCaseKeys = (obj: any): any => {
 };
 
 export const camelCaseToSnakeCaseKeys = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map((o) => {
+      if (typeof o === "object" && o !== null) {
+        return camelCaseToSnakeCaseKeys(o);
+      }
+      return o;
+    });
+  }
+
   const newObj: any = {};
   Object.keys(obj).forEach((key) => {
     const initialKey = String(key);
     const currentObject = obj[initialKey];
-    if (
-      typeof currentObject === "object" &&
-      currentObject !== null &&
-      !Array.isArray(currentObject)
-    ) {
+    if (typeof currentObject === "object" && currentObject !== null) {
       newObj[key.replace(/[A-Z]/g, (g) => `_${g.toLowerCase()}`)] =
         camelCaseToSnakeCaseKeys(currentObject);
     } else {
@@ -107,9 +117,7 @@ export const parseCpu = (cpu: number | string): number => {
   throw new Error("CPU must be a number or string.");
 };
 
-export const parseGpu = (
-  gpu: GpuTypeAlias | GpuTypeAlias[] | "string"
-): string => {
+export const parseGpu = (gpu: GpuType | GpuType[] | "string"): string => {
   if (Array.isArray(gpu)) {
     return gpu.join(",");
   }

@@ -70,7 +70,7 @@ export interface ObjectMetadata {
 }
 
 export interface CreateObjectRequest {
-  object_metadata: ObjectMetadata;
+  objectMetadata: ObjectMetadata;
   hash: string;
   size: number;
   overwrite: boolean;
@@ -99,12 +99,12 @@ export interface PutObjectRequest {
   chunk: Buffer;
   metadata: ObjectMetadata;
   hash: string;
-  is_final: boolean;
+  isFinal: boolean;
 }
 
 export interface FileSyncResult {
   success: boolean;
-  object_id: string;
+  objectId: string;
 }
 
 export class FileSyncer {
@@ -411,7 +411,7 @@ export class FileSyncer {
     // Simple lock mechanism
     if (_syncLock) {
       console.log("Sync already in progress");
-      return { success: false, object_id: "" };
+      return { success: false, objectId: "" };
     }
 
     try {
@@ -419,7 +419,7 @@ export class FileSyncer {
 
       if (this.isWorkspaceDir && getWorkspaceObjectId() !== "") {
         console.log("Files already synced");
-        return { success: true, object_id: getWorkspaceObjectId() };
+        return { success: true, objectId: getWorkspaceObjectId() };
       }
 
       return await this._sync(ignorePatterns, includePatterns, cacheObjectId);
@@ -461,14 +461,14 @@ export class FileSyncer {
       if (headResponse.exists) {
         if (!headResponse.ok) {
           console.error("File sync failed");
-          return { success: false, object_id: "" };
+          return { success: false, objectId: "" };
         }
         console.log("Files already synced");
 
         if (this.isWorkspaceDir && cacheObjectId) {
           setWorkspaceObjectId(headResponse.objectId);
         }
-        return { success: true, object_id: headResponse.objectId };
+        return { success: true, objectId: headResponse.objectId };
       }
 
       const metadata: ObjectMetadata = { name: hash, size };
@@ -477,11 +477,11 @@ export class FileSyncer {
         console.error(
           "Streaming upload not implemented. Please migrate to use workspace storage. Contact support@beam.cloud for assistance."
         );
-        return { success: false, object_id: "" };
+        return { success: false, objectId: "" };
       }
 
       const createResponse = await this.createObject({
-        object_metadata: metadata,
+        objectMetadata: metadata,
         hash,
         size,
         overwrite: true,
@@ -497,14 +497,14 @@ export class FileSyncer {
           if (this.isWorkspaceDir && cacheObjectId) {
             setWorkspaceObjectId(createResponse.objectId);
           }
-          return { success: true, object_id: createResponse.objectId };
+          return { success: true, objectId: createResponse.objectId };
         } else {
           console.error("File sync failed");
-          return { success: false, object_id: "" };
+          return { success: false, objectId: "" };
         }
       } else {
         console.error("File sync failed");
-        return { success: false, object_id: "" };
+        return { success: false, objectId: "" };
       }
     } finally {
       // Clean up temporary file

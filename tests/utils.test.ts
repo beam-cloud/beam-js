@@ -77,6 +77,46 @@ describe("snakeCaseToCamelCaseKeys", () => {
     };
     expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
   });
+
+  test("handles nested object is an array of objects", () => {
+    const input = {
+      snake_key: [{ nested_key: "object" }, { nested_key2: "object2" }],
+    };
+    const expected = {
+      snakeKey: [{ nestedKey: "object" }, { nestedKey2: "object2" }],
+    };
+    expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of strings", () => {
+    const input = { snake_key: ["object", "object2"] };
+    const expected = { snakeKey: ["object", "object2"] };
+    expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of numbers", () => {
+    const input = { snake_key: [1, 2, 3] };
+    const expected = { snakeKey: [1, 2, 3] };
+    expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of booleans", () => {
+    const input = { snake_key: [true, false] };
+    const expected = { snakeKey: [true, false] };
+    expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of null", () => {
+    const input = { snake_key: [null, null] };
+    const expected = { snakeKey: [null, null] };
+    expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of undefined", () => {
+    const input = { snake_key: [undefined, undefined] };
+    const expected = { snakeKey: [undefined, undefined] };
+    expect(snakeCaseToCamelCaseKeys(input)).toEqual(expected);
+  });
 });
 
 describe("camelCaseToSnakeCaseKeys", () => {
@@ -154,6 +194,46 @@ describe("camelCaseToSnakeCaseKeys", () => {
       another_key: [1, 2, 3],
     };
     expect(camelCaseToSnakeCaseKeys(input2)).toEqual(expected2);
+  });
+
+  test("handles nested object is an array of objects", () => {
+    const input = {
+      camelKey: [{ nestedKey: "object" }, { nestedKey2: "object2" }],
+    };
+    const expected = {
+      camel_key: [{ nested_key: "object" }, { nested_key2: "object2" }],
+    };
+    expect(camelCaseToSnakeCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of strings", () => {
+    const input = { camelKey: ["object", "object2"] };
+    const expected = { camel_key: ["object", "object2"] };
+    expect(camelCaseToSnakeCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of numbers", () => {
+    const input = { camelKey: [1, 2, 3] };
+    const expected = { camel_key: [1, 2, 3] };
+    expect(camelCaseToSnakeCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of booleans", () => {
+    const input = { camelKey: [true, false] };
+    const expected = { camel_key: [true, false] };
+    expect(camelCaseToSnakeCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of null", () => {
+    const input = { camelKey: [null, null] };
+    const expected = { camel_key: [null, null] };
+    expect(camelCaseToSnakeCaseKeys(input)).toEqual(expected);
+  });
+
+  test("handle object is an array of undefined", () => {
+    const input = { camelKey: [undefined, undefined] };
+    const expected = { camel_key: [undefined, undefined] };
+    expect(camelCaseToSnakeCaseKeys(input)).toEqual(expected);
   });
 });
 
@@ -335,15 +415,15 @@ describe("parseCpu", () => {
 describe("parseGpu", () => {
   test("joins array of GPUs with comma", () => {
     expect(parseGpu([GpuType.T4, GpuType.L4])).toBe("T4,L4");
-    expect(parseGpu(["A100-40", "H100"])).toBe("A100-40,H100");
+    expect(parseGpu([GpuType.A100_40, GpuType.H100])).toBe("A100-40,H100");
     expect(parseGpu([GpuType.Any])).toBe("any");
   });
 
   test("returns single GPU as string", () => {
     expect(parseGpu(GpuType.T4)).toBe("T4");
-    expect(parseGpu("A100-80")).toBe("A100-80");
+    expect(parseGpu(GpuType.A100_80)).toBe("A100-80");
     expect(parseGpu(GpuType.NoGPU)).toBe("");
-    expect(parseGpu("any")).toBe("any");
+    expect(parseGpu(GpuType.Any)).toBe("any");
   });
 
   test("handles empty array", () => {
@@ -351,7 +431,9 @@ describe("parseGpu", () => {
   });
 
   test("handles mixed array types", () => {
-    expect(parseGpu([GpuType.T4, "L4", GpuType.A100_40])).toBe("T4,L4,A100-40");
+    expect(parseGpu([GpuType.T4, GpuType.L4, GpuType.A100_40])).toBe(
+      "T4,L4,A100-40"
+    );
   });
 });
 

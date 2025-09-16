@@ -193,7 +193,6 @@ export class Stub {
           console.log(`\tPort ${port}: ${urlText}`);
         });
 
-        console.log("");
         return res;
       }
 
@@ -256,7 +255,7 @@ export class Stub {
         const syncResult = await this.syncer.sync(ignorePatterns);
         if (syncResult.success) {
           this.filesSynced = true;
-          this.objectId = syncResult.object_id;
+          this.objectId = syncResult.objectId;
         } else {
           console.error("File sync failed");
           return false;
@@ -348,6 +347,8 @@ export class Stub {
         outputs,
         tcp: this.config.tcp,
       };
+
+      console.log(camelCaseToSnakeCaseKeys(stubRequest));
 
       try {
         let stubResponse: GetOrCreateStubResponse;
