@@ -380,8 +380,8 @@ describe("formatEnv", () => {
   test("handles object with special characters in values", () => {
     const input = {
       PATH: "/usr/bin:/bin",
-      MESSAGE: "hello world",
-      SPECIAL: "value=with=equals",
+      MESSAGE: "hello world", // TODO: this is not a valid environment variable, needs quoting or escaping
+      SPECIAL: "value=with=equals", // TODO: this is not a valid environment variable
     };
     const result = formatEnv(input);
     expect(result).toContain("PATH=/usr/bin:/bin");
