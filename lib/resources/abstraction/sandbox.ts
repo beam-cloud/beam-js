@@ -263,19 +263,24 @@ export class Sandbox extends Pod {
  * Attributes:
  * - container_id (string): The unique ID of the created sandbox container.
  * - fs (SandboxFileSystem): File system interface for the sandbox.
- * - process (SandboxProcessManager): Process management interface for the sandbox.
+ * - processes (Record<number, SandboxProcess>): Map of running processes by PID.
+ *
+ * Process Management Methods:
+ * - run_code(code, blocking?, cwd?, env?): Execute Python code in the sandbox.
+ * - exec(...args): Run arbitrary commands in the sandbox.
+ * - list_processes(): Get all running processes.
+ * - get_process(pid): Get a specific process by PID.
  */
 export class SandboxInstance extends PodInstance {
   public stubId: string;
   public fs: SandboxFileSystem;
-  public process: SandboxProcessManager;
+  public processes: Record<number, SandboxProcess> = {};
   public terminated: boolean = false;
 
   constructor(data: { stubId: string } & PodInstanceData, pod: Pod) {
     super(data, pod);
     this.stubId = data.stubId;
     this.fs = new SandboxFileSystem(this);
-    this.process = new SandboxProcessManager(this);
   }
 
   /**
@@ -332,43 +337,6 @@ export class SandboxInstance extends PodInstance {
     if (data.ok && data.url) return data.url;
     throw new SandboxProcessError(data.errorMsg || "Failed to expose port");
   }
-}
-
-/**
- * Response object containing the results of a completed process execution.
- *
- * This class encapsulates the output and status information from a process
- * that has finished running in the sandbox.
- *
- * Attributes:
- * - pid (number): The process ID of the executed command.
- * - exit_code (number): The exit code of the process (0 typically indicates success).
- * - stdout (string): The full standard output captured for the process.
- * - stderr (string): The full standard error output captured for the process.
- * - result (string): Combined stdout and stderr output as a string.
- */
-export interface SandboxProcessResponse {
-  pid: number;
-  exit_code: number;
-  stdout: string;
-  stderr: string;
-  result: string;
-}
-
-/**
- * Manager for executing and controlling processes within a sandbox.
- *
- * This class provides a high-level interface for running commands and Python
- * code within the sandbox environment. It supports both blocking and non-blocking
- * execution, environment variable configuration, and working directory specification.
- */
-export class SandboxProcessManager {
-  public sandbox_instance: SandboxInstance;
-  public processes: Record<number, SandboxProcess> = {};
-
-  constructor(sandbox_instance: SandboxInstance) {
-    this.sandbox_instance = sandbox_instance;
-  }
 
   /**
    * Run Python code in the sandbox.
@@ -419,7 +387,7 @@ export class SandboxProcessManager {
 
     const resp = await beamClient.request({
       method: "POST",
-      url: `/api/v1/gateway/pods/${this.sandbox_instance.containerId}/exec`,
+      url: `/api/v1/gateway/pods/${this.containerId}/exec`,
       data: {
         command: shellCommand,
         cwd: opts?.cwd,
@@ -431,7 +399,7 @@ export class SandboxProcessManager {
       throw new SandboxProcessError(data.errorMsg || "Failed to start process");
     }
 
-    const process = new SandboxProcess(this.sandbox_instance, data.pid);
+    const process = new SandboxProcess(this, data.pid);
     this.processes[data.pid] = process;
     return process;
   }
@@ -448,6 +416,27 @@ export class SandboxProcessManager {
       throw new SandboxProcessError(`Process with pid ${pid} not found`);
     return proc;
   }
+}
+
+/**
+ * Response object containing the results of a completed process execution.
+ *
+ * This class encapsulates the output and status information from a process
+ * that has finished running in the sandbox.
+ *
+ * Attributes:
+ * - pid (number): The process ID of the executed command.
+ * - exit_code (number): The exit code of the process (0 typically indicates success).
+ * - stdout (string): The full standard output captured for the process.
+ * - stderr (string): The full standard error output captured for the process.
+ * - result (string): Combined stdout and stderr output as a string.
+ */
+export interface SandboxProcessResponse {
+  pid: number;
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  result: string;
 }
 
 /**
