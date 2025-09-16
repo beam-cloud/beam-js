@@ -17,12 +17,6 @@ export interface PodVolume {
   mount_path: string;
 }
 
-export interface CloudBucket {
-  name: string;
-  mount_path: string;
-  cloud_provider: "aws" | "gcp" | "azure";
-}
-
 export interface PodInstanceData {
   containerId: string;
   url: string;

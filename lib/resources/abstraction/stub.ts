@@ -1,9 +1,8 @@
 import * as path from "path";
-import beamClient from "../..";
+import beamClient, { GpuType } from "../..";
 import { Image } from "./image";
 import { Volume } from "../volume";
 import { FileSyncer } from "../../sync";
-import { GpuTypeAlias } from "../../types/image";
 import {
   Autoscaler,
   QueueDepthAutoscaler,
@@ -34,7 +33,7 @@ export interface StubConfig {
   app: string;
   cpu: number | string;
   memory: number | string;
-  gpu: GpuTypeAlias | GpuTypeAlias[] | "string";
+  gpu: GpuType | GpuType[] | "string";
   gpuCount: number;
   image: Image;
   workers: number;
@@ -100,7 +99,7 @@ export class Stub {
     memory = 128,
     gpuCount = 0,
     volumes = [],
-    gpu = "",
+    gpu = GpuType.NoGPU,
     secrets = [],
     env = {},
     workers = 1,

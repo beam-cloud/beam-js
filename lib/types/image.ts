@@ -1,13 +1,8 @@
 import BaseData from "./base";
-import {
-  PythonVersion,
-  PythonVersionAlias,
-  GpuType,
-  GpuTypeAlias,
-} from "./common";
+import { PythonVersion, GpuType } from "./common";
 
 // Re-export for backwards compatibility
-export { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias };
+export { PythonVersion, GpuType };
 
 export interface BuildStep {
   type: "pip" | "shell" | "micromamba";
@@ -104,7 +99,7 @@ export interface ImageBuildResult {
 }
 
 export interface ImageConfig {
-  pythonVersion: PythonVersionAlias | string;
+  pythonVersion: PythonVersion | string;
   pythonPackages: string[] | string;
   commands: string[];
   buildSteps: BuildStep[];

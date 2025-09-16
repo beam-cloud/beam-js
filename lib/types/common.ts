@@ -53,8 +53,6 @@ export type PythonVersionLiteral =
   | "micromamba3.11"
   | "micromamba3.12";
 
-export type PythonVersionAlias = PythonVersion | PythonVersionLiteral;
-
 export enum GpuType {
   NoGPU = "",
   Any = "any",
@@ -81,5 +79,3 @@ export type GpuTypeLiteral =
   | "A6000"
   | "RTX4090"
   | "L40S";
-
-export type GpuTypeAlias = GpuType | GpuTypeLiteral;

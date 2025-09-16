@@ -2,11 +2,11 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "target": "es2020",
-    "lib": ["ES6", "es2020", "dom"],
+    "lib": ["ES6", "es2020"],
     "module": "commonjs",
     "types": [],
     "rootDir": "." /* Specify the root folder within your source files. */,
-    "moduleResolution": "Node",
+    "moduleResolution": "node",
     "declaration": true,
     "baseUrl": "./" /* Specify the base directory to resolve non-relative module names. */,
     "outDir": "./dist",

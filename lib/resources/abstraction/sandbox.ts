@@ -299,7 +299,7 @@ export class SandboxInstance extends PodInstance {
   }
 
   /** Get the ID of the sandbox. */
-  public sandbox_id(): string {
+  public get sandboxId(): string {
     return this.containerId;
   }
 
