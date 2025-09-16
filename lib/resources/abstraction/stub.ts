@@ -20,7 +20,14 @@ import {
   GetUrlResponse,
   SecretVar,
 } from "../../types/stub";
-import { camelCaseToSnakeCaseKeys } from "../../util";
+import {
+  camelCaseToSnakeCaseKeys,
+  formatEnv,
+  parseCpu,
+  parseGpu,
+  parseMemory,
+  schemaToApi,
+} from "../../util";
 
 export interface StubConfig {
   name: string;
@@ -209,105 +216,6 @@ export class Stub {
     }
   }
 
-  private parseMemory(memory: string | number): number {
-    if (typeof memory === "number") {
-      return memory;
-    }
-
-    if (typeof memory === "string") {
-      if (memory.toLowerCase().endsWith("mi")) {
-        return parseInt(memory.slice(0, -2));
-      } else if (memory.toLowerCase().endsWith("gb")) {
-        return parseInt(memory.slice(0, -2)) * 1000;
-      } else if (memory.toLowerCase().endsWith("gi")) {
-        return parseInt(memory.slice(0, -2)) * 1024;
-      } else {
-        throw new Error("Unsupported memory format");
-      }
-    }
-
-    throw new Error("Memory must be a number or string");
-  }
-
-  private parseCpu(cpu: number | string): number {
-    const minCores = 0.1;
-    const maxCores = 64.0;
-
-    if (typeof cpu === "number") {
-      if (cpu >= minCores && cpu <= maxCores) {
-        return Math.floor(cpu * 1000); // convert cores to millicores
-      } else {
-        throw new Error(
-          "CPU value out of range. Must be between 0.1 and 64 cores."
-        );
-      }
-    }
-
-    if (typeof cpu === "string") {
-      if (cpu.endsWith("m") && /^\d+$/.test(cpu.slice(0, -1))) {
-        const millicores = parseInt(cpu.slice(0, -1));
-        if (millicores >= minCores * 1000 && millicores <= maxCores * 1000) {
-          return millicores;
-        } else {
-          throw new Error(
-            "CPU value out of range. Must be between 100m and 64000m."
-          );
-        }
-      } else {
-        throw new Error(
-          "Invalid CPU string format. Must be a digit followed by 'm' (e.g., '1000m')."
-        );
-      }
-    }
-
-    throw new Error("CPU must be a number or string.");
-  }
-
-  private parseGpu(gpu: GpuTypeAlias | GpuTypeAlias[] | "string"): string {
-    if (Array.isArray(gpu)) {
-      return gpu.join(",");
-    }
-    return gpu;
-  }
-
-  private formatEnv(env: Record<string, string> | string[]): string[] {
-    if (Array.isArray(env)) {
-      return env;
-    }
-
-    return Object.entries(env).map(([k, v]) => `${k}=${v}`);
-  }
-
-  private schemaToApi(pySchema?: Schema): any {
-    if (!pySchema) {
-      return undefined;
-    }
-
-    const fieldToApi = (field: any): any => {
-      if (field.type === "Object" && field.fields) {
-        return {
-          type: "object",
-          fields: {
-            fields: Object.fromEntries(
-              Object.entries(field.fields.fields).map(([k, v]) => [
-                k,
-                fieldToApi(v),
-              ])
-            ),
-          },
-        };
-      }
-      return { type: field.type };
-    };
-
-    const fieldsDict = pySchema.toDict().fields;
-    return {
-      fields: Object.fromEntries(
-        Object.entries(fieldsDict).map(([k, v]) => [k, fieldToApi(v)])
-      ),
-    };
-  }
-
   public async prepareRuntime(
     func?: Function,
     stubType: string = "container",
@@ -387,10 +295,10 @@ export class Stub {
 
     // Prepare schemas
     const inputs = this.config.inputs
-      ? this.schemaToApi(this.config.inputs)
+      ? schemaToApi(this.config.inputs)
       : undefined;
     const outputs = this.config.outputs
-      ? this.schemaToApi(this.config.outputs)
+      ? schemaToApi(this.config.outputs)
       : undefined;
 
     // Create stub if not already created
@@ -402,16 +310,16 @@ export class Stub {
         name: this.config.name,
         appName: this.config.app,
         pythonVersion: this.config.image?.config.pythonVersion || "python3.10",
-        cpu: this.parseCpu(this.config.cpu),
-        memory: this.parseMemory(this.config.memory),
-        gpu: this.parseGpu(this.config.gpu),
+        cpu: parseCpu(this.config.cpu),
+        memory: parseMemory(this.config.memory),
+        gpu: parseGpu(this.config.gpu),
         gpuCount: this.config.gpuCount,
         keepWarmSeconds: this.config.keepWarmSeconds,
         workers: this.config.workers,
         maxPendingTasks: this.config.maxPendingTasks,
         volumes: this.config.volumes.map((v) => v.export()),
         secrets: this.config.secrets,
-        env: this.formatEnv(this.config.env),
+        env: formatEnv(this.config.env),
         forceCreate: forceCreateStub,
         authorized: this.config.authorized,
         autoscaler: {

@@ -48,23 +48,11 @@ function shellQuote(arg: string): string {
  * - sync_local_dir (boolean): Whether to sync the local directory to the sandbox filesystem on creation. Default is false.
  */
 export class Sandbox extends Pod {
-  public debugBuffer: string = "";
   public syncLocalDir: boolean = false;
 
   constructor(config: CreateStubConfig, syncLocalDir: boolean = false) {
     super(config);
     this.syncLocalDir = syncLocalDir;
-  }
-
-  /**
-   * Print the debug buffer contents to stdout.
-   *
-   * This method outputs any debug information that has been collected
-   * during sandbox operations.
-   */
-  public debug(): void {
-    // eslint-disable-next-line no-console
-    console.log(this.debugBuffer);
   }
 
   /**
