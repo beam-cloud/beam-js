@@ -3,12 +3,6 @@ import { GpuType } from "./image";
 
 export { GpuType };
 
-export interface PodData {
-  container_id: string;
-  status: EPodStatus;
-  url?: string;
-}
-
 export enum EPodStatus {
   PENDING = "PENDING",
   RUNNING = "RUNNING",

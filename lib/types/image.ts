@@ -120,10 +120,6 @@ export interface ImageConfig {
   snapshotId: string;
 }
 
-export interface ImageData {
-  id: string;
-}
-
 export class ImageCredentialValueNotFound extends Error {
   public keyName: string;
 

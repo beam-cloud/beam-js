@@ -52,7 +52,7 @@ export interface StubConfig {
   tcp: boolean;
 }
 
-export interface StubConfigOnCreate extends Partial<StubConfig> {
+export interface CreateStubConfig extends Partial<StubConfig> {
   name: string;
 }
 
@@ -108,12 +108,12 @@ export class Stub {
     inputs = undefined,
     outputs = undefined,
     tcp = false,
-  }: StubConfigOnCreate) {
+  }: CreateStubConfig) {
     this.config = {} as StubConfig;
     this.config.name = name;
     this.config.app = app || name;
     this.config.authorized = authorized;
-    this.config.image = image || new Image();
+    this.config.image = image || new Image({});
     this.config.callbackUrl = callbackUrl;
     this.config.cpu = cpu;
     this.config.memory = memory;
@@ -330,7 +330,7 @@ export class Stub {
         if (imageBuildResult && imageBuildResult.success) {
           const image = this.config.image;
           image.isAvailable = true;
-          image.data.id = imageBuildResult.imageId || "";
+          image.id = imageBuildResult.imageId || "";
           image.config.pythonVersion =
             imageBuildResult.pythonVersion || "python3.10";
         } else {
@@ -397,7 +397,7 @@ export class Stub {
     if (!this.stubCreated) {
       const stubRequest: GetOrCreateStubRequest = {
         objectId: this.objectId!,
-        imageId: this.config.image.data.id,
+        imageId: this.config.image.id,
         stubType,
         name: this.config.name,
         appName: this.config.app,

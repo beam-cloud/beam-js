@@ -414,14 +414,14 @@ export class FileSyncer {
       return { success: false, object_id: "" };
     }
 
-    if (this.isWorkspaceDir && getWorkspaceObjectId() !== "") {
-      console.log("Files already synced");
-      return { success: true, object_id: getWorkspaceObjectId() };
-    }
-
-    _syncLock = true;
-
     try {
+      _syncLock = true;
+
+      if (this.isWorkspaceDir && getWorkspaceObjectId() !== "") {
+        console.log("Files already synced");
+        return { success: true, object_id: getWorkspaceObjectId() };
+      }
+
       return await this._sync(ignorePatterns, includePatterns, cacheObjectId);
     } finally {
       _syncLock = false;

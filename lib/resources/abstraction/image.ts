@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import {
-  ImageData,
   ImageConfig,
   BuildImageRequest,
   BuildImageResponse,
@@ -19,54 +18,54 @@ import beamClient from "../..";
 
 const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
 
-const defaultConfig: ImageConfig = {
-  pythonVersion: DEFAULT_PYTHON_VERSION,
-  pythonPackages: [],
-  commands: [],
-  buildSteps: [],
-  baseImage: "",
-  baseImageCreds: {},
-  envVars: [],
-  secrets: [],
-  dockerfile: "",
-  gpu: "",
-  ignorePython: false,
-  includeFilesPatterns: [],
-  buildCtxObject: "",
-  snapshotId: "",
-};
+export interface CreateImageConfig extends Partial<ImageConfig> {
+  pythonVersion?: PythonVersion;
+  pythonPackages?: string[] | string;
+  commands?: string[];
+  baseImage?: string;
+  baseImageCreds?: ImageCredentials;
+}
 
 export class Image {
-  public data: ImageData;
-  public config: ImageConfig = defaultConfig;
+  public id: string = "";
+  public config: ImageConfig = {} as ImageConfig;
   public isAvailable: boolean = false;
 
-  constructor(config: ImageConfig = defaultConfig) {
-    this.data = {
-      id: "",
-    } as ImageData;
+  constructor({
+    pythonVersion = DEFAULT_PYTHON_VERSION,
+    pythonPackages = [],
+    commands = [],
+    buildSteps = [],
+    baseImage = "",
+    baseImageCreds = {},
+    envVars = [],
+    secrets = [],
+    dockerfile = "",
+    gpu = "",
+    ignorePython = false,
+    includeFilesPatterns = [],
+    buildCtxObject = "",
+    snapshotId = "",
+  }: CreateImageConfig) {
+    this.id = "";
 
-    this.config.pythonVersion = config.pythonVersion;
-    if (typeof config.pythonPackages === "string") {
-      config.pythonPackages = this._loadRequirementsFile(config.pythonPackages);
+    this.config.pythonVersion = pythonVersion;
+    if (typeof pythonPackages === "string") {
+      pythonPackages = this._loadRequirementsFile(pythonPackages);
     }
-    this.config.pythonPackages = this._sanitizePythonPackages(
-      config.pythonPackages
-    );
+    this.config.pythonPackages = this._sanitizePythonPackages(pythonPackages);
 
-    this.config.commands = config.commands;
-    this.config.baseImage = config.baseImage;
-    this.config.baseImageCreds = this._processCredentials(
-      config.baseImageCreds
-    );
-    this.config.envVars = config.envVars;
-    this.config.secrets = config.secrets;
-    this.config.dockerfile = config.dockerfile;
-    this.config.gpu = config.gpu;
-    this.config.ignorePython = config.ignorePython;
-    this.config.includeFilesPatterns = config.includeFilesPatterns;
-    this.config.buildCtxObject = config.buildCtxObject;
-    this.config.snapshotId = config.snapshotId;
+    this.config.commands = commands;
+    this.config.baseImage = baseImage;
+    this.config.baseImageCreds = this._processCredentials(baseImageCreds);
+    this.config.envVars = envVars;
+    this.config.secrets = secrets;
+    this.config.dockerfile = dockerfile;
+    this.config.gpu = gpu;
+    this.config.ignorePython = ignorePython;
+    this.config.includeFilesPatterns = includeFilesPatterns;
+    this.config.buildCtxObject = buildCtxObject;
+    this.config.snapshotId = snapshotId;
   }
 
   static async fromDockerfile(
@@ -74,7 +73,6 @@ export class Image {
     contextDir?: string
   ): Promise<Image> {
     const image = new Image({
-      ...defaultConfig,
       dockerfile: dockerfilePath,
     });
 
@@ -106,7 +104,6 @@ export class Image {
 
   static fromRegistry(imageUri: string, credentials?: ImageCredentials): Image {
     return new Image({
-      ...defaultConfig,
       baseImage: imageUri,
       baseImageCreds: credentials || {},
     });
@@ -186,9 +183,7 @@ export class Image {
   }
 
   static fromSnapshot(snapshotId: string): Image {
-    const image = new Image({
-      ...defaultConfig,
-    });
+    const image = new Image({});
     image.config.snapshotId = snapshotId;
     return image;
   }

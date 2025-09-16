@@ -63,7 +63,6 @@ export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from "./sync";
 // Export Pod classes and types
 export { Pod, PodInstance } from "./resources/abstraction/pod";
 export {
-  PodData,
   PodInstanceData,
   CreatePodRequest,
   CreatePodResponse,
@@ -78,7 +77,7 @@ export { Sandbox } from "./resources/abstraction/sandbox";
 
 // Export Image classes and types
 export { Image } from "./resources/abstraction/image";
-export { ImageConfig, ImageData } from "./types/image";
+export { ImageConfig } from "./types/image";
 
 // Export Volume classes and types
 export { Volume, Volumes, CloudBucket } from "./resources/volume";

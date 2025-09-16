@@ -1,10 +1,10 @@
 import {
-  PodData,
   CreatePodRequest,
   CreatePodResponse,
   PodInstanceData,
+  EPodStatus,
 } from "../../types/pod";
-import { Stub, StubConfigOnCreate } from "./stub";
+import { Stub, CreateStubConfig } from "./stub";
 import {
   EStubType,
   DeployStubRequest,
@@ -16,14 +16,19 @@ import beamClient from "../..";
 let USER_CODE_DIR = "/mnt/code";
 
 export class Pod {
-  public data: PodData;
   public stub: Stub;
+  public container_id: string;
+  public status: EPodStatus;
+  public url?: string;
 
-  constructor(config: StubConfigOnCreate) {
+  constructor(config: CreateStubConfig) {
     this.stub = new Stub(config);
+    this.container_id = "";
+    this.status = EPodStatus.PENDING;
+    this.url = undefined;
   }
 
-  public async createPod(
+  private async _createPod(
     request: CreatePodRequest
   ): Promise<CreatePodResponse> {
     const response = await beamClient.request({
@@ -40,34 +45,13 @@ export class Pod {
       this.stub.config.entrypoint = entrypoint;
     }
 
-    let is_custom_image =
-      this.stub.config.image?.config.baseImage ||
-      this.stub.config.image?.config.dockerfile;
-
-    if (!this.stub.config.entrypoint.length && !is_custom_image) {
-      throw new Error(
-        "You must specify an entrypoint or provide a custom image."
-      );
-    }
-
-    let ignore_patterns: string[] = [];
-    if (is_custom_image) {
-      ignore_patterns = ["**"];
-    }
-
-    if (!is_custom_image && this.stub.config.entrypoint) {
-      this.stub.config.entrypoint = [
-        "sh",
-        "-c",
-        `cd ${USER_CODE_DIR} && ${this.stub.config.entrypoint.join(" ")}`,
-      ];
-    }
+    const { ignorePatterns } = this.parseAndValidate();
 
     const prepared = await this.stub.prepareRuntime(
       undefined,
       EStubType.PodRun,
       true,
-      ignore_patterns
+      ignorePatterns
     );
     if (!prepared) {
       return new PodInstance(
@@ -85,7 +69,7 @@ export class Pod {
       throw new Error("Stub not created");
     }
 
-    const createResp = await this.createPod({
+    const createResp = await this._createPod({
       stubId: this.stub.stubId,
     });
 
@@ -142,32 +126,8 @@ export class Pod {
       );
     }
 
-    const isCustomImage = !!(
-      this.stub.config.image?.config.baseImage ||
-      this.stub.config.image?.config.dockerfile
-    );
+    const { ignorePatterns } = this.parseAndValidate();
 
-    if (!this.stub.config.entrypoint.length && !isCustomImage) {
-      console.error("You must specify an entrypoint.");
-      return { deployment_details: {}, success: false };
-    }
-
-    let ignorePatterns: string[] = [];
-    if (isCustomImage) {
-      ignorePatterns = ["**"];
-    }
-
-    if (
-      !isCustomImage &&
-      this.stub.config.entrypoint &&
-      this.stub.config.entrypoint.length > 0
-    ) {
-      this.stub.config.entrypoint = [
-        "sh",
-        "-c",
-        `cd ${USER_CODE_DIR} && ${this.stub.config.entrypoint.join(" ")}`,
-      ];
-    }
     const prepared = await this.stub.prepareRuntime(
       undefined,
       EStubType.PodDeployment,
@@ -175,7 +135,7 @@ export class Pod {
       ignorePatterns
     );
     if (!prepared) {
-      return { deployment_details: {}, success: false };
+      throw new Error("Failed to prepare runtime");
     }
 
     if (!this.stub.stubId) {
@@ -211,6 +171,36 @@ export class Pod {
       console.error("Failed to deploy pod:", error);
       return { deployment_details: {}, success: false };
     }
+  }
+
+  public parseAndValidate(): { ignorePatterns: string[] } {
+    const isCustomImage = !!(
+      this.stub.config.image?.config.baseImage ||
+      this.stub.config.image?.config.dockerfile
+    );
+
+    if (!this.stub.config.entrypoint.length && !isCustomImage) {
+      throw new Error("You must specify an entrypoint.");
+    }
+
+    let ignorePatterns: string[] = [];
+    if (isCustomImage) {
+      ignorePatterns = ["**"];
+    }
+
+    if (
+      !isCustomImage &&
+      this.stub.config.entrypoint &&
+      this.stub.config.entrypoint.length > 0
+    ) {
+      this.stub.config.entrypoint = [
+        "sh",
+        "-c",
+        `cd ${USER_CODE_DIR} && ${this.stub.config.entrypoint.join(" ")}`,
+      ];
+    }
+
+    return { ignorePatterns };
   }
 }
 
