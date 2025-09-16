@@ -11,7 +11,7 @@ import {
 import { readdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve, relative } from "path";
-import { formatBytes } from "./util";
+import { formatBytes, uploadToPresignedUrl } from "./util";
 import archiver from "archiver";
 import axios from "axios";
 import beamClient from "./index";
@@ -362,47 +362,6 @@ export class FileSyncer {
     return response.data;
   }
 
-  private async uploadToPresignedUrl(
-    presignedUrl: string,
-    filePath: string
-  ): Promise<boolean> {
-    try {
-      const stats = statSync(filePath);
-      const fileStream = createReadStream(filePath);
-
-      console.log(`Uploading ${formatBytes(stats.size)} to cloud storage...`);
-
-      await axios.put(presignedUrl, fileStream, {
-        headers: {
-          "Content-Type": "application/zip",
-          "Content-Length": stats.size.toString(),
-        },
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
-        timeout: 300000, // 5 minute timeout for large files
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const progress = (
-              (progressEvent.loaded / progressEvent.total) *
-              100
-            ).toFixed(1);
-            console.log(
-              `Upload progress: ${progress}% (${formatBytes(
-                progressEvent.loaded
-              )}/${formatBytes(progressEvent.total)})`
-            );
-          }
-        },
-      });
-
-      console.log("Upload completed successfully ✅");
-      return true;
-    } catch (error) {
-      console.error("Upload failed:", error);
-      return false;
-    }
-  }
-
   public async sync(
     ignorePatterns: string[] = [],
     includePatterns: string[] = [],
@@ -488,7 +447,7 @@ export class FileSyncer {
       });
 
       if (createResponse.ok) {
-        const uploadSuccess = await this.uploadToPresignedUrl(
+        const uploadSuccess = await uploadToPresignedUrl(
           createResponse.presignedUrl,
           tempZipPath
         );

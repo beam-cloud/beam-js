@@ -3,11 +3,7 @@ import beamClient, { GpuType } from "../..";
 import { Image } from "./image";
 import { Volume } from "../volume";
 import { FileSyncer } from "../../sync";
-import {
-  Autoscaler,
-  QueueDepthAutoscaler,
-  AUTOSCALER_TYPES,
-} from "../../types/autoscaler";
+import { Autoscaler, QueueDepthAutoscaler } from "../../types/autoscaler";
 import { TaskPolicy } from "../../types/task";
 import { PricingPolicy } from "../../types/pricing";
 import { Schema } from "../../types/schema";
@@ -275,9 +271,7 @@ export class Stub {
     }
 
     // Validate autoscaler
-    const autoscalerType =
-      AUTOSCALER_TYPES[this.config.autoscaler.constructor.name || ""];
-    if (!autoscalerType) {
+    if (!this.config.autoscaler.type) {
       console.error(
         `Invalid Autoscaler class: ${
           this.config.autoscaler.constructor.name || ""
@@ -321,7 +315,7 @@ export class Stub {
         forceCreate: forceCreateStub,
         authorized: this.config.authorized,
         autoscaler: {
-          type: autoscalerType,
+          type: this.config.autoscaler.type,
           maxContainers: this.config.autoscaler.maxContainers,
           tasksPerContainer: this.config.autoscaler.tasksPerContainer,
           minContainers: this.config.autoscaler.minContainers,

@@ -1,11 +1,5 @@
 import BeamClient from "../";
-import {
-  GetOrCreateVolumeRequest,
-  GetOrCreateVolumeResponse,
-  VolumeGateway,
-  CloudBucketConfig,
-  VolumeConfigGateway,
-} from "../types/volume";
+import { GetOrCreateVolumeResponse, VolumeGateway } from "../types/volume";
 
 export class Volume {
   public name: string;
@@ -71,80 +65,5 @@ export class Volume {
       id: this.volumeId,
       mountPath: this.mountPath,
     };
-  }
-}
-
-export class CloudBucket extends Volume {
-  public config: CloudBucketConfig;
-
-  constructor(name: string, mountPath: string, config: CloudBucketConfig) {
-    /**
-     * Creates a CloudBucket instance.
-     *
-     * When your container runs, your cloud bucket will be available at `./{name}` and `/volumes/{name}`.
-     *
-     * Parameters:
-     *   name: The name of the cloud bucket, must be the same as the bucket name in the cloud provider.
-     *   mountPath: The path where the cloud bucket is mounted within the container environment.
-     *   config: Configuration for the cloud bucket.
-     *
-     * Example:
-     *   ```typescript
-     *   import { CloudBucket } from "beam-js";
-     *
-     *   // Cloud Bucket
-     *   const cloudBucket = new CloudBucket(
-     *     "other_model_weights",
-     *     "./other-weights",
-     *     {
-     *       accessKey: "MY_ACCESS_KEY_SECRET",
-     *       secretKey: "MY_SECRET_KEY_SECRET",
-     *       endpoint: "https://s3-endpoint.com",
-     *     }
-     *   );
-     *
-     *   const stub = new Stub(client, {
-     *     volumes: [cloudBucket]
-     *   });
-     *   ```
-     */
-    super(name, mountPath);
-    this.config = config;
-  }
-
-  public async getOrCreate(): Promise<boolean> {
-    // Cloud buckets don't need to be created, they already exist
-    return true;
-  }
-
-  public export(): VolumeGateway {
-    const vol = super.export();
-    vol.config = {
-      bucketName: this.name,
-      accessKey: this.config.accessKey,
-      secretKey: this.config.secretKey,
-      endpointUrl: this.config.endpoint,
-      region: this.config.region,
-      readOnly: this.config.readOnly,
-      forcePathStyle: this.config.forcePathStyle,
-    } as VolumeConfigGateway;
-    return vol;
-  }
-}
-
-// Legacy Volumes API resource for backwards compatibility
-export class Volumes {
-  public create(name: string, mountPath: string): Volume {
-    const volume = new Volume(name, mountPath);
-    return volume;
-  }
-
-  public createCloudBucket(
-    name: string,
-    mountPath: string,
-    config: CloudBucketConfig
-  ): CloudBucket {
-    const bucket = new CloudBucket(name, mountPath, config);
-    return bucket;
   }
 }

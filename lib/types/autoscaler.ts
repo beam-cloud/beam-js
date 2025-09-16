@@ -10,25 +10,26 @@ export interface AutoscalerConfig {
   minContainers?: number;
 }
 
-export class Autoscaler {
+export abstract class Autoscaler {
+  abstract type: string;
   public maxContainers: number;
   public tasksPerContainer: number;
   public minContainers: number;
 
   constructor(config: AutoscalerConfig = {}) {
-    this.maxContainers = config.maxContainers ?? DEFAULT_AUTOSCALER_MAX_CONTAINERS;
-    this.tasksPerContainer = config.tasksPerContainer ?? DEFAULT_AUTOSCALER_TASKS_PER_CONTAINER;
-    this.minContainers = config.minContainers ?? DEFAULT_AUTOSCALER_MIN_CONTAINERS;
+    this.maxContainers =
+      config.maxContainers ?? DEFAULT_AUTOSCALER_MAX_CONTAINERS;
+    this.tasksPerContainer =
+      config.tasksPerContainer ?? DEFAULT_AUTOSCALER_TASKS_PER_CONTAINER;
+    this.minContainers =
+      config.minContainers ?? DEFAULT_AUTOSCALER_MIN_CONTAINERS;
   }
 }
 
 export class QueueDepthAutoscaler extends Autoscaler {
+  type = QUEUE_DEPTH_AUTOSCALER_TYPE;
+
   constructor(config: AutoscalerConfig = {}) {
     super(config);
   }
 }
-
-// Map of autoscaler types for lookup - matches Python _AUTOSCALER_TYPES
-export const AUTOSCALER_TYPES: Record<string, string> = {
-  QueueDepthAutoscaler: QUEUE_DEPTH_AUTOSCALER_TYPE,
-};
