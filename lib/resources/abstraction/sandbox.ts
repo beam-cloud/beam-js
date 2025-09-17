@@ -294,13 +294,13 @@ export class SandboxInstance extends PodInstance {
 
     const resp = await beamClient.request({
       method: "POST",
-      url: `/api/v1/gateway/pods/${this.containerId}/snapshot`,
+      url: `/api/v1/gateway/pods/${this.containerId}/snapshot-memory`,
       data: { stubId: this.stubId },
     });
     const data = resp.data as PodSandboxSnapshotResponse;
     if (!data.ok)
       throw new SandboxProcessError(data.errorMsg || "Failed to snapshot");
-    return data.snapshotId;
+    return data.checkpointId;
   }
 
   /** Get the ID of the sandbox. */

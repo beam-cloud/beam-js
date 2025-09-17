@@ -26,7 +26,7 @@ export interface PodInstanceData {
 
 export interface CreatePodRequest {
   stubId: string;
-  snapshotId?: string;
+  checkpointId?: string;
 }
 
 export interface CreatePodResponse {
@@ -278,7 +278,7 @@ export interface PodSandboxSnapshotRequest {
 export interface PodSandboxSnapshotResponse {
   ok: boolean;
   errorMsg: string;
-  snapshotId: string;
+  checkpointId: string;
 }
 
 // Store requests here?

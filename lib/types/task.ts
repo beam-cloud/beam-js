@@ -22,9 +22,9 @@ export class TaskPolicy {
   public ttl: number;
 
   constructor(config: TaskPolicyConfig = {}) {
-    this.maxRetries = config.maxRetries ?? 0; // Default 0 to match Python
-    this.timeout = config.timeout ?? 0; // Default 0 to match Python
-    this.ttl = config.ttl ?? 0; // Default 0 to match Python
+    this.maxRetries = config.maxRetries ?? 0;
+    this.timeout = config.timeout ?? 0;
+    this.ttl = config.ttl ?? 0;
   }
 }
 
