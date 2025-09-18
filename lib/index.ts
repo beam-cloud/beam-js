@@ -106,10 +106,3 @@ export {
 
 // Export stub types and constants
 export * from "./types/stub";
-
-// import { Deployments } from "./resources/deployment";
-// import { Pod } from "./resources/abstraction/pod";
-
-// export namespace client {
-//   export const deployments = new Deployments();
-// }
