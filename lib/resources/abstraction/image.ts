@@ -9,6 +9,7 @@ import {
   ImageBuildResult,
   BuildStep,
   PythonVersion,
+  PythonVersionAlias,
   GpuType,
   ImageCredentials,
   ImageCredentialValueNotFound,
@@ -19,7 +20,7 @@ import beamClient from "../..";
 const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
 
 export interface CreateImageConfig extends Partial<ImageConfig> {
-  pythonVersion?: PythonVersion;
+  pythonVersion?: PythonVersionAlias;
   pythonPackages?: string[] | string;
   commands?: string[];
   baseImage?: string;

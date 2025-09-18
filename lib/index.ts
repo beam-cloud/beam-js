@@ -60,6 +60,15 @@ export default new BeamClient();
 
 export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from "./sync";
 
+// Export Deployment classes and types
+export { default as Deployments } from "./resources/deployment";
+export * from "./resources/deployment";
+export * from "./types/deployment";
+
+// Export Task classes and types
+export * from "./resources/task";
+export * from "./types/task";
+
 // Export Pod classes and types
 export * from "./resources/abstraction/pod";
 export * from "./types/pod";
@@ -91,6 +100,7 @@ export {
   TaskStatusHelper,
   TaskExitCode,
   PythonVersion,
+  PythonVersionAlias,
   GpuType,
 } from "./types/common";
 

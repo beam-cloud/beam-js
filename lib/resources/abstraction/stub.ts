@@ -1,5 +1,5 @@
 import * as path from "path";
-import beamClient, { GpuType } from "../..";
+import beamClient, { GpuType, GpuTypeAlias } from "../..";
 import { Image } from "./image";
 import { Volume } from "../volume";
 import { FileSyncer } from "../../sync";
@@ -29,7 +29,7 @@ export interface StubConfig {
   app: string;
   cpu: number | string;
   memory: number | string;
-  gpu: GpuType | GpuType[] | "string";
+  gpu: GpuTypeAlias | GpuTypeAlias[];
   gpuCount: number;
   image: Image;
   workers: number;

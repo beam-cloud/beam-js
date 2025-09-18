@@ -9,7 +9,11 @@ import {
   schemaToApi,
 } from "../lib/util";
 import { Schema } from "../lib/types/schema";
-import { GpuType } from "../lib/types/common";
+import {
+  GpuType,
+  PythonVersion,
+  PythonVersionAlias,
+} from "../lib/types/common";
 
 describe("snakeCaseToCamelCaseKeys", () => {
   test("converts simple snake_case keys to camelCase", () => {
@@ -434,6 +438,63 @@ describe("parseGpu", () => {
     expect(parseGpu([GpuType.T4, GpuType.L4, GpuType.A100_40])).toBe(
       "T4,L4,A100-40"
     );
+  });
+
+  test("handles string literal GPU types", () => {
+    expect(parseGpu("H100")).toBe("H100");
+    expect(parseGpu("T4")).toBe("T4");
+    expect(parseGpu("A100-40")).toBe("A100-40");
+    expect(parseGpu("")).toBe("");
+    expect(parseGpu("any")).toBe("any");
+  });
+
+  test("handles array of string literal GPU types", () => {
+    expect(parseGpu(["T4", "L4"])).toBe("T4,L4");
+    expect(parseGpu(["H100", "A100-40"])).toBe("H100,A100-40");
+    expect(parseGpu(["any"])).toBe("any");
+  });
+
+  test("handles mixed enum and string literal arrays", () => {
+    expect(parseGpu(["H100", GpuType.A100_40])).toBe("H100,A100-40");
+    expect(parseGpu([GpuType.T4, "L4", GpuType.A100_40])).toBe("T4,L4,A100-40");
+  });
+});
+
+describe("PythonVersionAlias", () => {
+  test("accepts PythonVersion enum values", () => {
+    const testFunction = (version: PythonVersionAlias): string => {
+      return version.toString();
+    };
+
+    expect(testFunction(PythonVersion.Python311)).toBe("python3.11");
+    expect(testFunction(PythonVersion.Python310)).toBe("python3.10");
+    expect(testFunction(PythonVersion.Python39)).toBe("python3.9");
+    expect(testFunction(PythonVersion.Python312)).toBe("python3.12");
+  });
+
+  test("accepts string literal values", () => {
+    const testFunction = (version: PythonVersionAlias): string => {
+      return version.toString();
+    };
+
+    expect(testFunction("python3.11")).toBe("python3.11");
+    expect(testFunction("python3.10")).toBe("python3.10");
+    expect(testFunction("python3.9")).toBe("python3.9");
+    expect(testFunction("micromamba3.11")).toBe("micromamba3.11");
+  });
+
+  test("accepts mixed usage in arrays", () => {
+    const versions: PythonVersionAlias[] = [
+      PythonVersion.Python311,
+      "python3.10",
+      PythonVersion.Python39,
+      "micromamba3.11",
+    ];
+
+    expect(versions[0]).toBe("python3.11");
+    expect(versions[1]).toBe("python3.10");
+    expect(versions[2]).toBe("python3.9");
+    expect(versions[3]).toBe("micromamba3.11");
   });
 });
 

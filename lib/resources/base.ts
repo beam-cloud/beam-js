@@ -1,6 +1,6 @@
 import { serializeNestedBaseObject } from "../types/base";
 import beamClient, { beamOpts } from "..";
-import { AxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 
 export interface ResourceObject<ResourceType> {
   data: ResourceType;
@@ -30,19 +30,35 @@ abstract class APIResource<Resource, ResourceType> {
   }
 
   public async get({ id }: { id: string }): Promise<Resource> {
-    const resp = await beamClient.request({
-      url: `/api/v1/${this.object}/${beamOpts.workspaceId}/${id}`,
-    });
+    try {
+      const resp = await beamClient.request({
+        url: `/api/v1/${this.object}/${beamOpts.workspaceId}/${id}`,
+      });
 
-    if (resp.status !== 200) {
-      throw new Error(`Failed to retrieve deployment: ${resp.statusText}`);
+      const serializedData = serializeNestedBaseObject(resp.data);
+      return this._constructResource(serializedData);
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404) {
+          const objectName = this.object
+            ? this.object.charAt(0).toUpperCase() + this.object.slice(1)
+            : "Resource";
+          throw new Error(`${objectName} not found`);
+        }
+
+        const statusText = error.response?.statusText || "Request failed";
+        throw new Error(
+          `Failed to retrieve ${this.object || "resource"}: ${
+            status || ""
+          } ${statusText}`.trim()
+        );
+      }
+      throw error;
     }
-
-    const serializedData = serializeNestedBaseObject(resp.data);
-
-    return this._constructResource(serializedData);
   }
 
+  // TODO: Add pagination types/parsing (Check frontend for reference)
   public async list(opts?: any): Promise<Resource[]> {
     if (!opts) {
       opts = {};
@@ -59,11 +75,10 @@ abstract class APIResource<Resource, ResourceType> {
       throw new Error(`Failed to list deployments: ${resp.statusText}`);
     }
 
-    if (!resp.data) {
+    if (!resp.data.data) {
       return [];
     }
-
-    return resp.data.map((d: ResourceType) => {
+    return resp.data.data.map((d: ResourceType) => {
       const serializedData = serializeNestedBaseObject(d);
 
       return this._constructResource(serializedData);

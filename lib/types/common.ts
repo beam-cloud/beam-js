@@ -79,3 +79,7 @@ export type GpuTypeLiteral =
   | "A6000"
   | "RTX4090"
   | "L40S";
+
+export type GpuTypeAlias = GpuType | GpuTypeLiteral;
+
+export type PythonVersionAlias = PythonVersion | PythonVersionLiteral;

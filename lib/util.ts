@@ -1,5 +1,5 @@
 import { Schema } from "lib";
-import { GpuType } from "./types/image";
+import { GpuTypeAlias } from "./types/image";
 import { createReadStream, statSync } from "fs";
 import axios from "axios";
 
@@ -119,7 +119,7 @@ export const parseCpu = (cpu: number | string): number => {
   throw new Error("CPU must be a number or string.");
 };
 
-export const parseGpu = (gpu: GpuType | GpuType[] | "string"): string => {
+export const parseGpu = (gpu: GpuTypeAlias | GpuTypeAlias[]): string => {
   if (Array.isArray(gpu)) {
     return gpu.join(",");
   }
