@@ -1,7 +1,12 @@
-import { PythonVersion, GpuType, GpuTypeAlias } from "./common";
+import {
+  PythonVersion,
+  PythonVersionAlias,
+  GpuType,
+  GpuTypeAlias,
+} from "./common";
 
 // Re-export for backwards compatibility
-export { PythonVersion, GpuType, GpuTypeAlias };
+export { PythonVersion, PythonVersionAlias, GpuType, GpuTypeAlias };
 
 export interface BuildStep {
   type: "pip" | "shell" | "micromamba";

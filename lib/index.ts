@@ -100,6 +100,7 @@ export {
   TaskStatusHelper,
   TaskExitCode,
   PythonVersion,
+  PythonVersionAlias,
   GpuType,
 } from "./types/common";
 

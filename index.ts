@@ -10,6 +10,7 @@ export type {
   ImageBuildResult,
   BuildStep,
   PythonVersion,
+  PythonVersionAlias,
   GpuType,
   GpuTypeAlias,
   ImageCredentials,
