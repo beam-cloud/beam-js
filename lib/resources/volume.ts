@@ -11,8 +11,6 @@ export class Volume {
     /**
      * Creates a Volume instance.
      *
-     * When your container runs, your volume will be available at `./{name}` and `/volumes/{name}`.
-     *
      * Parameters:
      *   name: The name of the volume, a descriptive identifier for the data volume.
      *         Note that when using an external provider, the name must be the same as the bucket name.
@@ -25,7 +23,7 @@ export class Volume {
      *   // Shared Volume
      *   const sharedVolume = new Volume("model_weights", "./my-weights");
      *
-     *   const stub = new Stub(client, {
+     *   const stub = new StubBuilder({
      *     volumes: [sharedVolume]
      *   });
      *   ```

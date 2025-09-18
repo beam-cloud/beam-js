@@ -38,8 +38,7 @@ function shellQuote(arg: string): string {
  * - gpu (GpuType | GpuType[]): The type or name of the GPU device to be used for GPU-accelerated tasks. If not
  *   applicable or no GPU required, leave it empty. Default is GpuType.NoGPU.
  * - gpu_count (number): The number of GPUs to allocate. Default is 0.
- * - image (Image): The container image used for the task execution. Whatever you pass here will have an additional `add_python_packages` call
- *   with ["fastapi", "vllm", "huggingface_hub"] added to it to ensure that we can run vLLM in the container. (Note: image manipulation must be done by the caller in JS SDK.)
+ * - image (Image): The container image used for the task execution.
  * - keep_warm_seconds (number): The number of seconds to keep the sandbox around. Default is 10 minutes (600s). Use -1 for sandboxes that never timeout.
  * - authorized (boolean): Whether the sandbox should be authorized for external access. Default is false.
  * - name (string | undefined): The name of the Sandbox app. Default is none, which means you must provide it during deployment.

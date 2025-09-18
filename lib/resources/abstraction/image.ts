@@ -9,7 +9,6 @@ import {
   ImageBuildResult,
   BuildStep,
   PythonVersion,
-  PythonVersionAlias,
   GpuType,
   ImageCredentials,
   ImageCredentialValueNotFound,
@@ -20,7 +19,7 @@ import beamClient from "../..";
 const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
 
 export interface CreateImageConfig extends Partial<ImageConfig> {
-  pythonVersion?: PythonVersionAlias;
+  pythonVersion?: PythonVersion | string;
   pythonPackages?: string[] | string;
   commands?: string[];
   baseImage?: string;
@@ -331,9 +330,24 @@ export class Image {
       packageList = packages;
     }
 
+    // Add the packages to the existing list
+    this.config.pythonPackages = [
+      ...this.config.pythonPackages,
+      ...packageList,
+    ];
+
     return this;
   }
 
+  /**
+   * Add Python packages that will be installed when building the image.
+   * These will be executed at the end of the image build and in the
+   * order they are added. If a single string is provided, it will be
+   * interpreted as a path to a requirements.txt file.
+   *
+   * @param packages The Python packages to add or the path to a requirements.txt file.
+   * @returns The image instance.
+   */
   addPythonPackages(packages: string[] | string): Image {
     let packageList: string[];
     if (typeof packages === "string") {
@@ -349,6 +363,12 @@ export class Image {
     } else {
       packageList = packages;
     }
+
+    // Add the packages to the existing list
+    this.config.pythonPackages = [
+      ...this.config.pythonPackages,
+      ...packageList,
+    ];
 
     return this;
   }

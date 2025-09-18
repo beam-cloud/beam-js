@@ -40,9 +40,15 @@ export enum PythonVersion {
   Python310 = "python3.10",
   Python311 = "python3.11",
   Python312 = "python3.12",
+  Micromamba38 = "micromamba3.8",
+  Micromamba39 = "micromamba3.9",
+  Micromamba310 = "micromamba3.10",
+  Micromamba311 = "micromamba3.11",
+  Micromamba312 = "micromamba3.12",
 }
 
 export type PythonVersionLiteral =
+  | "python3"
   | "python3.9"
   | "python3.10"
   | "python3.11"
@@ -52,6 +58,8 @@ export type PythonVersionLiteral =
   | "micromamba3.10"
   | "micromamba3.11"
   | "micromamba3.12";
+
+export type PythonVersionAlias = PythonVersion | PythonVersionLiteral;
 
 export enum GpuType {
   NoGPU = "",
@@ -81,5 +89,3 @@ export type GpuTypeLiteral =
   | "L40S";
 
 export type GpuTypeAlias = GpuType | GpuTypeLiteral;
-
-export type PythonVersionAlias = PythonVersion | PythonVersionLiteral;
