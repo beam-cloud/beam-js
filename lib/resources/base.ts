@@ -1,6 +1,6 @@
 import { serializeNestedBaseObject } from "../types/base";
-import BeamClient from "..";
-import { AxiosRequestConfig } from "axios";
+import beamClient, { beamOpts } from "..";
+import axios, { AxiosRequestConfig } from "axios";
 
 export interface ResourceObject<ResourceType> {
   data: ResourceType;
@@ -9,11 +9,8 @@ export interface ResourceObject<ResourceType> {
 
 abstract class APIResource<Resource, ResourceType> {
   protected object: string;
-  public client: BeamClient;
 
-  constructor(client: BeamClient) {
-    this.client = client;
-  }
+  constructor() {}
 
   protected abstract _constructResource(data: ResourceType): Resource;
 
@@ -29,32 +26,48 @@ abstract class APIResource<Resource, ResourceType> {
   public async request<ResponseType>(
     config: AxiosRequestConfig
   ): Promise<ResponseType> {
-    return await this.client.request(config);
+    return await beamClient.request(config);
   }
 
   public async get({ id }: { id: string }): Promise<Resource> {
-    const resp = await this.client.request({
-      url: `/api/v1/${this.object}/${this.client.opts.workspaceId}/${id}`,
-    });
+    try {
+      const resp = await beamClient.request({
+        url: `/api/v1/${this.object}/${beamOpts.workspaceId}/${id}`,
+      });
 
-    if (resp.status !== 200) {
-      throw new Error(`Failed to retrieve deployment: ${resp.statusText}`);
+      const serializedData = serializeNestedBaseObject(resp.data);
+      return this._constructResource(serializedData);
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404) {
+          const objectName = this.object
+            ? this.object.charAt(0).toUpperCase() + this.object.slice(1)
+            : "Resource";
+          throw new Error(`${objectName} not found`);
+        }
+
+        const statusText = error.response?.statusText || "Request failed";
+        throw new Error(
+          `Failed to retrieve ${this.object || "resource"}: ${
+            status || ""
+          } ${statusText}`.trim()
+        );
+      }
+      throw error;
     }
-
-    const serializedData = serializeNestedBaseObject(resp.data);
-
-    return this._constructResource(serializedData);
   }
 
+  // TODO: Add pagination types/parsing (Check frontend for reference)
   public async list(opts?: any): Promise<Resource[]> {
     if (!opts) {
       opts = {};
     }
 
-    const params = this.client._parseOptsToURLParams(opts);
-    const resp = await this.client.request({
+    const params = beamClient._parseOptsToURLParams(opts);
+    const resp = await beamClient.request({
       url: `/api/v1/${this.object}/${
-        this.client.opts.workspaceId
+        beamOpts.workspaceId
       }?${params.toString()}`,
     });
 
@@ -62,11 +75,10 @@ abstract class APIResource<Resource, ResourceType> {
       throw new Error(`Failed to list deployments: ${resp.statusText}`);
     }
 
-    if (!resp.data) {
+    if (!resp.data.data) {
       return [];
     }
-
-    return resp.data.map((d: ResourceType) => {
+    return resp.data.data.map((d: ResourceType) => {
       const serializedData = serializeNestedBaseObject(d);
 
       return this._constructResource(serializedData);
@@ -74,9 +86,9 @@ abstract class APIResource<Resource, ResourceType> {
   }
 
   public async delete(id: string): Promise<void> {
-    return await this.client.request({
+    return await beamClient.request({
       method: "DELETE",
-      url: `/api/v1/${this.object}/${this.client.opts.workspaceId}/${id}`,
+      url: `/api/v1/${this.object}/${beamOpts.workspaceId}/${id}`,
     });
   }
 }

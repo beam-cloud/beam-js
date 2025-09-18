@@ -1,6 +1,4 @@
 import axios, { Axios, AxiosRequestConfig } from "axios";
-import { Deployments } from "./resources/deployment";
-import { Tasks } from "./resources/task";
 import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
@@ -10,44 +8,37 @@ export interface BeamClientOpts {
   timeout?: number;
 }
 
-export default class BeamClient {
+export const beamOpts = {
+  token: "",
+  workspaceId: "",
+  gatewayUrl: "https://app.beam.cloud",
+};
+
+class BeamClient {
   private _client: Axios;
-  public opts: BeamClientOpts = {
-    token: "",
-    workspaceId: "",
-    gatewayUrl: "https://app.beam.cloud",
-  };
-  static BeamClient = this;
-  deployments: Deployments = new Deployments(this);
-  tasks: Tasks = new Tasks(this);
-
-  public constructor(opts: BeamClientOpts) {
-    this.opts = {
-      ...this.opts,
-      ...opts,
-    };
-
-    this._client = axios.create({
-      baseURL: this.opts.gatewayUrl,
-      headers: {
-        Authorization: `Bearer ${this.opts.token}`,
-        "Content-Type": "application/json",
-      },
-      timeout: this.opts.timeout,
-    });
-  }
-
-  public static async init(token: string): Promise<BeamClient> {
-    const client = new BeamClient({
-      token,
-      workspaceId: "",
-    });
-    const workspace = await client._getWorkspace();
-    client.opts.workspaceId = workspace.external_id;
-    return client;
-  }
 
   public async request(config: AxiosRequestConfig): Promise<any> {
+    if (!beamOpts.token) {
+      throw new Error("Beam token is not set");
+    }
+    if (!beamOpts.gatewayUrl) {
+      throw new Error("Beam gateway URL is not set");
+    }
+    if (!beamOpts.workspaceId) {
+      throw new Error("Beam workspace ID is not set");
+    }
+
+    if (!this._client) {
+      this._client = axios.create({
+        baseURL: beamOpts.gatewayUrl,
+        headers: {
+          Authorization: `Bearer ${beamOpts.token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+    }
+
     return await this._client.request(config);
   }
 
@@ -64,3 +55,54 @@ export default class BeamClient {
     return new URLSearchParams(camelCaseToSnakeCaseKeys(opts));
   }
 }
+
+export default new BeamClient();
+
+export { FileSyncer, setWorkspaceObjectId, getWorkspaceObjectId } from "./sync";
+
+// Export Deployment classes and types
+export { default as Deployments } from "./resources/deployment";
+export * from "./resources/deployment";
+export * from "./types/deployment";
+
+// Export Task classes and types
+export * from "./resources/task";
+export * from "./types/task";
+
+// Export Pod classes and types
+export * from "./resources/abstraction/pod";
+export * from "./types/pod";
+
+// Export Sandbox classes and types
+export * from "./resources/abstraction/sandbox";
+
+// Export Image classes and types
+export * from "./resources/abstraction/image";
+export * from "./types/image";
+
+// Export Volume classes and types
+export * from "./resources/volume";
+export * from "./types/volume";
+
+// Export Stub classes and types
+export * from "./resources/abstraction/stub";
+
+// Export supporting types
+export * from "./types/autoscaler";
+export * from "./types/task";
+export * from "./types/pricing";
+export * from "./types/schema";
+
+// Export common types
+export {
+  LifeCycleMethod,
+  TaskStatus,
+  TaskStatusHelper,
+  TaskExitCode,
+  PythonVersion,
+  PythonVersionAlias,
+  GpuType,
+} from "./types/common";
+
+// Export stub types and constants
+export * from "./types/stub";

@@ -1,7 +1,8 @@
 import APIResource, { ResourceObject } from "./base";
 import { TaskData } from "../types/task";
+import beamClient, { beamOpts } from "..";
 
-export class Tasks extends APIResource<Task, TaskData> {
+class Tasks extends APIResource<Task, TaskData> {
   public object: string = "task";
 
   protected _constructResource(data: TaskData): Task {
@@ -10,9 +11,9 @@ export class Tasks extends APIResource<Task, TaskData> {
 
   public async cancel(tasks: string[] | Task[]): Promise<void> {
     const ids = tasks.map((t) => (t instanceof Task ? t.data.id : t));
-    return await this.client.request({
+    return await beamClient.request({
       method: "DELETE",
-      url: `/api/v1/task/${this.client.opts.workspaceId}`,
+      url: `/api/v1/task/${beamOpts.workspaceId}`,
       data: {
         ids,
       },
@@ -20,7 +21,7 @@ export class Tasks extends APIResource<Task, TaskData> {
   }
 }
 
-export class Task implements ResourceObject<TaskData> {
+class Task implements ResourceObject<TaskData> {
   public data: TaskData;
   public manager: Tasks;
 
@@ -39,3 +40,6 @@ export class Task implements ResourceObject<TaskData> {
     return await this.manager.cancel([this]);
   }
 }
+
+export default new Tasks();
+export { Task };

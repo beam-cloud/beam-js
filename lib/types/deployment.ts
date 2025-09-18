@@ -5,6 +5,6 @@ export interface DeploymentData extends BaseData {
   name: string;
   version: number;
   active: boolean;
-  stub_type: EStubType;
+  stubType: EStubType;
   stub: Stub;
 }

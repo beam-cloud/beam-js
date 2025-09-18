@@ -2,6 +2,7 @@ import { AxiosResponse } from "axios";
 import { DeploymentData } from "../types/deployment";
 import APIResource, { ResourceObject } from "./base";
 import { EStubType } from "../types/stub";
+import BeamClient, { beamOpts } from "..";
 
 export interface ListDeploymentsOptions {
   stubType?: EStubType;
@@ -21,7 +22,7 @@ interface DeploymentGetParams {
   url?: string;
 }
 
-export class Deployments extends APIResource<Deployment, DeploymentData> {
+class Deployments extends APIResource<Deployment, DeploymentData> {
   public object: string = "deployment";
 
   protected _constructResource(data: any): Deployment {
@@ -92,6 +93,8 @@ export class Deployments extends APIResource<Deployment, DeploymentData> {
   }
 }
 
+export default new Deployments();
+
 export class Deployment implements ResourceObject<DeploymentData> {
   data: DeploymentData;
   manager: Deployments;
@@ -158,11 +161,9 @@ export class Deployment implements ResourceObject<DeploymentData> {
       version = "latest";
     }
 
-    return `${this.manager.client.opts.gatewayUrl?.replace("http", "ws")}/${
+    return `${beamOpts.gatewayUrl?.replace("http", "ws")}/${
       this.stubDeploymentType
-    }/${this.data.name}/${version}${path}?auth_token=${
-      this.manager.client.opts.token
-    }`;
+    }/${this.data.name}/${version}${path}?auth_token=${beamOpts.token}`;
   }
 
   public httpUrl(path: string = ""): string {
@@ -171,10 +172,10 @@ export class Deployment implements ResourceObject<DeploymentData> {
       version = "latest";
     }
 
-    return `${this.manager.client.opts.gatewayUrl}/${this.stubDeploymentType}/${this.data.name}/${version}${path}`;
+    return `${beamOpts.gatewayUrl}/${this.stubDeploymentType}/${this.data.name}/${version}${path}`;
   }
 
   public get stubDeploymentType(): string {
-    return this.data.stub_type.split("/")[0];
+    return this.data.stubType.split("/")[0];
   }
 }

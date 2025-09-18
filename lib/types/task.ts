@@ -1,14 +1,49 @@
 import BaseData from "./base";
-import { Stub } from "./stub";
+
+export interface TaskPolicyConfig {
+  maxRetries?: number;
+  timeout?: number;
+  ttl?: number;
+}
+
+/**
+ * Task policy for a function. This helps manages lifecycle of an individual task.
+ *
+ * Parameters:
+ *   maxRetries: The maximum number of times a task will be retried if the container crashes. Default is 0.
+ *   timeout: The maximum number of seconds a task can run before it times out.
+ *            Default depends on the abstraction that you are using.
+ *            Set it to -1 to disable the timeout (this does not disable timeout for endpoints).
+ *   ttl: The expiration time for a task in seconds. Must be greater than 0 and less than 24 hours (86400 seconds).
+ */
+export class TaskPolicy {
+  public maxRetries: number;
+  public timeout: number;
+  public ttl: number;
+
+  constructor(config: TaskPolicyConfig = {}) {
+    this.maxRetries = config.maxRetries ?? 0;
+    this.timeout = config.timeout ?? 0;
+    this.ttl = config.ttl ?? 0;
+  }
+}
 
 export interface TaskData extends BaseData {
-  started_at: string;
-  ended_at: string;
   status: ETaskStatus;
-  stats: TaskStats;
-  container_id: string;
-  deployment: TaskDeployment;
-  stub: Stub;
+  containerId: string;
+  startedAt: string;
+  endedAt: string;
+  stubId: string;
+  stubName: string;
+  workspaceId: string;
+  workspaceName: string;
+}
+
+export interface ListTasksResponse {
+  ok: boolean;
+  errMsg: string;
+  tasks: TaskData[];
+  total: number;
 }
 
 export enum ETaskStatus {
@@ -20,14 +55,4 @@ export enum ETaskStatus {
   COMPLETE = "COMPLETE",
   CANCELLED = "CANCELLED",
   EXPIRED = "EXPIRED",
-}
-
-export interface TaskStats {
-  queue_depth: number;
-}
-
-export interface TaskDeployment {
-  id: string;
-  name: string;
-  version: string;
 }
