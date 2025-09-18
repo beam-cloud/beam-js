@@ -11,6 +11,7 @@ export type {
   BuildStep,
   PythonVersion,
   GpuType,
+  GpuTypeAlias,
   ImageCredentials,
   ImageCredentialKeys,
   AWSCredentials,

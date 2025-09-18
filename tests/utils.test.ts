@@ -435,6 +435,25 @@ describe("parseGpu", () => {
       "T4,L4,A100-40"
     );
   });
+
+  test("handles string literal GPU types", () => {
+    expect(parseGpu("H100")).toBe("H100");
+    expect(parseGpu("T4")).toBe("T4");
+    expect(parseGpu("A100-40")).toBe("A100-40");
+    expect(parseGpu("")).toBe("");
+    expect(parseGpu("any")).toBe("any");
+  });
+
+  test("handles array of string literal GPU types", () => {
+    expect(parseGpu(["T4", "L4"])).toBe("T4,L4");
+    expect(parseGpu(["H100", "A100-40"])).toBe("H100,A100-40");
+    expect(parseGpu(["any"])).toBe("any");
+  });
+
+  test("handles mixed enum and string literal arrays", () => {
+    expect(parseGpu(["H100", GpuType.A100_40])).toBe("H100,A100-40");
+    expect(parseGpu([GpuType.T4, "L4", GpuType.A100_40])).toBe("T4,L4,A100-40");
+  });
 });
 
 describe("formatEnv", () => {
