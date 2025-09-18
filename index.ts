@@ -4,6 +4,8 @@ export default BeamClient;
 export namespace BeamClient {}
 export { BeamClient };
 
+export { beamOpts } from "./lib";
+export type { BeamClientOpts } from "./lib";
 export { Image } from "./lib/resources/abstraction/image";
 export type {
   ImageConfig,
