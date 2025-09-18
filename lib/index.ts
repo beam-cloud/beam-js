@@ -70,18 +70,22 @@ export * from "./resources/task";
 export * from "./types/task";
 
 // Export Pod classes and types
-export * from "./resources/abstraction/pod";
+export { Pod, PodInstance } from "./resources/abstraction/pod";
 export * from "./types/pod";
 
 // Export Sandbox classes and types
-export * from "./resources/abstraction/sandbox";
+export {
+  Sandbox,
+  SandboxInstance,
+  SandboxFileSystem,
+} from "./resources/abstraction/sandbox";
 
 // Export Image classes and types
-export * from "./resources/abstraction/image";
+export { Image } from "./resources/abstraction/image";
 export * from "./types/image";
 
 // Export Volume classes and types
-export * from "./resources/volume";
+export { Volume } from "./resources/volume";
 export * from "./types/volume";
 
 // Export Stub classes and types
@@ -101,6 +105,7 @@ export {
   TaskExitCode,
   PythonVersion,
   GpuType,
+  GpuTypeAlias,
 } from "./types/common";
 
 // Export stub types and constants
