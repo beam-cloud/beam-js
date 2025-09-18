@@ -112,8 +112,14 @@ export class Pod {
    *
    * @example
    * ```ts
-   * const pod = new Pod(podsManager, undefined, { cpu: 1.0, memory: 128, image: new Image(), keep_warm_seconds: 1000 });
-   * const { deployment_details, success } = await pod.deploy("my-pod");
+   * const pod = new Pod({
+   *   name: "my-pod",
+   *   cpu: 1.0,
+   *   memory: 128,
+   *   image: new Image(),
+   *   keepWarmSeconds: 1000
+   * });
+   * const { deploymentDetails, success } = await pod.deploy("my-pod");
    * ```
    */
   public async deploy(
