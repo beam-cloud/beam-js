@@ -6,11 +6,23 @@
   "type": "module",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./*": {
+      "import": "./dist/*.mjs",
+      "require": "./dist/*.js",
+      "types": "./dist/*.d.ts"
+    }
+  },
   "repository": "git@github.com:beam-cloud/beta9-js.git",
   "author": "John <john@slai.io>",
   "license": "MIT",
   "scripts": {
-    "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE && chmod +x ./scripts/fix-common-js-exports.sh && ./scripts/fix-common-js-exports.sh",
+    "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
     "test": "jest"
   },
   "dependencies": {
