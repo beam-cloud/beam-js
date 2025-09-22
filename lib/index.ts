@@ -105,8 +105,8 @@ export {
   TaskExitCode,
   PythonVersion,
   GpuType,
-  GpuTypeAlias,
 } from "./types/common";
+export type { GpuTypeAlias } from "./types/common";
 
 // Export stub types and constants
 export * from "./types/stub";

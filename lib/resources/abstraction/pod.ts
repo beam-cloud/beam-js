@@ -22,7 +22,10 @@ export class Pod {
   public url?: string;
 
   constructor(config: CreateStubConfig) {
-    this.stub = new StubBuilder(config);
+    this.stub = new StubBuilder({ ...config, authorized: false });
+    if (this.stub.config.image) {
+      this.stub.config.image.config.ignorePython = true;
+    }
     this.containerId = "";
     this.status = EPodStatus.PENDING;
     this.url = undefined;

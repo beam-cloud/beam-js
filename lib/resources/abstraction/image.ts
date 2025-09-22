@@ -42,7 +42,7 @@ export class Image {
     secrets = [],
     dockerfile = "",
     gpu = "",
-    ignorePython = false,
+    ignorePython = true,
     includeFilesPatterns = [],
     buildCtxObject = "",
     snapshotId = "",
@@ -275,6 +275,7 @@ export class Image {
       console.error("Build failed:", error);
       return { success: false };
     }
+    console.log("lastResponse", lastResponse);
 
     if (!lastResponse.success) {
       console.error(lastResponse.msg || "Build failed");
