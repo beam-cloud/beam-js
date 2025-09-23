@@ -275,7 +275,6 @@ export class Image {
       console.error("Build failed:", error);
       return { success: false };
     }
-    console.log("lastResponse", lastResponse);
 
     if (!lastResponse.success) {
       console.error(lastResponse.msg || "Build failed");

@@ -116,7 +116,6 @@ export class Sandbox extends Pod {
       url: `api/v1/gateway/pods`,
       data: { stubId, checkpointId: snapshotId },
     });
-    console.log("createResp", createResp);
     const body = createResp.data as {
       ok: boolean;
       containerId: string;
@@ -334,6 +333,7 @@ export class SandboxInstance extends PodInstance {
       data: { stubId: this.stubId, port },
     });
     const data = resp.data as PodSandboxExposePortResponse;
+    if (data.ok && data.url) return data.url;
     throw new SandboxProcessError(data.errorMsg || "Failed to expose port");
   }
 
