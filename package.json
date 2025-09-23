@@ -2,27 +2,26 @@
   "name": "@beamcloud/beam-js",
   "version": "1.0.0-rc.8",
   "description": "Javascript SDK to interact with Beam",
-  "main": "dist/index.js",
+  "main": "dist/node/index.cjs",
   "type": "module",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "module": "dist/node/index.mjs",
+  "types": "dist/browser/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./*": {
-      "import": "./dist/*.mjs",
-      "require": "./dist/*.js",
-      "types": "./dist/*.d.ts"
+      "types": "./dist/browser/index.d.ts",
+      "browser": {
+        "import": "./dist/browser/index.mjs",
+        "require": "./dist/browser/index.cjs"
+      },
+      "import": "./dist/node/index.mjs",
+      "require": "./dist/node/index.cjs"
     }
   },
   "repository": "git@github.com:beam-cloud/beta9-js.git",
   "author": "John <john@slai.io>",
   "license": "MIT",
   "scripts": {
-    "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
+    "build": "yarn tsup && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
     "test": "jest"
   },
   "dependencies": {
@@ -43,32 +42,12 @@
     "bun-types": "latest",
     "ts-node": "^10.9.2",
     "tsc-multi": "^1.1.0",
+    "tsup": "^8.5.0",
     "tsx": "^4.20.5",
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
-  },
-  ".": {
-    "require": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "types": "./dist/index.d.mts",
-    "default": "./dist/index.mjs"
-  },
-  "./*.mjs": {
-    "types": "./dist/*.d.ts",
-    "default": "./dist/*.mjs"
-  },
-  "./*.js": {
-    "types": "./dist/*.d.ts",
-    "default": "./dist/*.js"
-  },
-  "./*": {
-    "types": "./dist/*.d.ts",
-    "require": "./dist/*.js",
-    "default": "./dist/*.mjs"
   },
   "files": [
     "*"

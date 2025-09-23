@@ -2,7 +2,7 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "target": "es2020",
-    "lib": ["ES6", "es2020"],
+    "lib": ["ES2020", "DOM"],
     "module": "commonjs",
     "types": [],
     "rootDir": "." /* Specify the root folder within your source files. */,
@@ -24,6 +24,6 @@
     "noImplicitReturns": true /* Enable error reporting for codepaths that do not explicitly return in a function. */,
     "skipLibCheck": true /* Skip type checking all .d.ts files. */
   },
-  "include": ["./lib/**/*", "./index*.*s", "./config/**/*"],
+  "include": ["./lib/**/*", "./index*.*s", "./config/**/*", "./src/**/*"],
   "exclude": ["./node_modules/", "./test/"]
 }
