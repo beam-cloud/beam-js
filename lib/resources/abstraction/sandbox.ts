@@ -9,6 +9,7 @@ import type {
   PodSandboxExecResponse,
   PodSandboxListFilesResponse,
   PodSandboxCreateDirectoryResponse,
+  PodSandboxListUrlsResponse,
   PodInstanceData,
 } from "../../types/pod";
 import beamClient from "../..";
@@ -335,6 +336,20 @@ export class SandboxInstance extends PodInstance {
     const data = resp.data as PodSandboxExposePortResponse;
     if (data.ok && data.url) return data.url;
     throw new SandboxProcessError(data.errorMsg || "Failed to expose port");
+  }
+
+  /**
+   * List all exposed URLs in the sandbox.
+   */
+  public async listUrls(): Promise<string[]> {
+    const resp = await beamClient.request({
+      method: "GET",
+      url: `/api/v1/gateway/pods/${this.containerId}/urls`,
+    });
+    const data = resp.data as PodSandboxListUrlsResponse;
+    if (!data.ok)
+      throw new SandboxProcessError(data.errorMsg || "Failed to list URLs");
+    return Object.values(data.urls || {});
   }
 
   /**
