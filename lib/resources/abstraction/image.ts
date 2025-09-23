@@ -42,7 +42,7 @@ export class Image {
     secrets = [],
     dockerfile = "",
     gpu = "",
-    ignorePython = false,
+    ignorePython = true,
     includeFilesPatterns = [],
     buildCtxObject = "",
     snapshotId = "",
@@ -119,6 +119,7 @@ export class Image {
       url: "/api/v1/gateway/images/build",
       data: apiRequest,
       responseType: "stream",
+      timeout: 600000,
     });
 
     return this._createAsyncIterable(response);

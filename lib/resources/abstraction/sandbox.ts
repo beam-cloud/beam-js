@@ -114,7 +114,7 @@ export class Sandbox extends Pod {
     const createResp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods`,
-      data: { stubId, snapshotId },
+      data: { stubId, checkpointId: snapshotId },
     });
     const body = createResp.data as {
       ok: boolean;

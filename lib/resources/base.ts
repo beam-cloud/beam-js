@@ -1,5 +1,5 @@
 import { serializeNestedBaseObject } from "../types/base";
-import beamClient, { beamOpts } from "..";
+import beamClient, { beamOpts } from "../index";
 import axios, { AxiosRequestConfig } from "axios";
 
 export interface ResourceObject<ResourceType> {

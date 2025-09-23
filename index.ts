@@ -4,15 +4,21 @@ export default BeamClient;
 export namespace BeamClient {}
 export { BeamClient };
 
+export { beamOpts } from "./lib";
+export type { BeamClientOpts } from "./lib";
+export {
+  Sandbox,
+  SandboxInstance,
+  SandboxFileSystem,
+} from "./lib/resources/abstraction/sandbox";
+export { Pod, PodInstance } from "./lib/resources/abstraction/pod";
 export { Image } from "./lib/resources/abstraction/image";
 export type {
   ImageConfig,
   ImageBuildResult,
   BuildStep,
   PythonVersion,
-  PythonVersionAlias,
   GpuType,
-  GpuTypeAlias,
   ImageCredentials,
   ImageCredentialKeys,
   AWSCredentials,
