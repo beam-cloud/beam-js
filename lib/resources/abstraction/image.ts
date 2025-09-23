@@ -1,4 +1,4 @@
-import * as fs from "fs";
+// import * as fs from "fs"; // Disabled: Node fs is not available in browsers
 import * as path from "path";
 import {
   ImageConfig,
@@ -50,10 +50,11 @@ export class Image {
     this.id = "";
 
     this.config.pythonVersion = pythonVersion;
-    if (typeof pythonPackages === "string") {
-      pythonPackages = this._loadRequirementsFile(pythonPackages);
-    }
-    this.config.pythonPackages = this._sanitizePythonPackages(pythonPackages);
+    // if (typeof pythonPackages === "string") {
+    //   pythonPackages = this._loadRequirementsFile(pythonPackages);
+    // }
+    // this.config.pythonPackages = this._sanitizePythonPackages(pythonPackages);
+    this.config.pythonPackages = this._sanitizePythonPackages([] as string[]);
 
     this.config.commands = commands;
     this.config.baseImage = baseImage;
@@ -68,39 +69,39 @@ export class Image {
     this.config.snapshotId = snapshotId;
   }
 
-  static async fromDockerfile(
-    dockerfilePath: string,
-    contextDir?: string
-  ): Promise<Image> {
-    const image = new Image({
-      dockerfile: dockerfilePath,
-    });
+  // static async fromDockerfile(
+  //   dockerfilePath: string,
+  //   contextDir?: string
+  // ): Promise<Image> {
+  //   const image = new Image({
+  //     dockerfile: dockerfilePath,
+  //   });
 
-    if (!contextDir) {
-      contextDir = path.dirname(dockerfilePath);
-    }
+  //   if (!contextDir) {
+  //     contextDir = path.dirname(dockerfilePath);
+  //   }
 
-    try {
-      // Sync files to get build context object ID
-      console.log(`Syncing build context from: ${contextDir}`);
-      const objectId = await image.syncFiles(contextDir);
-      image.config.buildCtxObject = objectId;
-      console.log(`Build context synced with object ID: ${objectId}`);
-    } catch (error) {
-      throw new Error(`Failed to sync build context: ${error}`);
-    }
+  //   try {
+  //     // Sync files to get build context object ID
+  //     console.log(`Syncing build context from: ${contextDir}`);
+  //     const objectId = await image.syncFiles(contextDir);
+  //     image.config.buildCtxObject = objectId;
+  //     console.log(`Build context synced with object ID: ${objectId}`);
+  //   } catch (error) {
+  //     throw new Error(`Failed to sync build context: ${error}`);
+  //   }
 
-    try {
-      const dockerfile = fs.readFileSync(dockerfilePath, "utf8");
-      image.config.dockerfile = dockerfile;
-    } catch (error) {
-      throw new Error(
-        `Failed to read Dockerfile at ${dockerfilePath}: ${error}`
-      );
-    }
+  //   try {
+  //     const dockerfile = fs.readFileSync(dockerfilePath, "utf8");
+  //     image.config.dockerfile = dockerfile;
+  //   } catch (error) {
+  //     throw new Error(
+  //       `Failed to read Dockerfile at ${dockerfilePath}: ${error}`
+  //     );
+  //   }
 
-    return image;
-  }
+  //   return image;
+  // }
 
   static fromRegistry(imageUri: string, credentials?: ImageCredentials): Image {
     return new Image({
@@ -315,31 +316,31 @@ export class Image {
    * @param channels The micromamba channels to use.
    * @returns The image instance
    */
-  addMicromambaPackages(
-    packages: string[] | string,
-    channels: string[] = []
-  ): Image {
-    if (!this.config.pythonVersion.startsWith("micromamba")) {
-      throw new Error("Micromamba must be enabled to use this method.");
-    }
+  // addMicromambaPackages(
+  //   packages: string[] | string,
+  //   channels: string[] = []
+  // ): Image {
+  //   if (!this.config.pythonVersion.startsWith("micromamba")) {
+  //     throw new Error("Micromamba must be enabled to use this method.");
+  //   }
 
-    let packageList: string[];
-    if (typeof packages === "string") {
-      packageList = this._sanitizePythonPackages(
-        this._loadRequirementsFile(packages)
-      );
-    } else {
-      packageList = packages;
-    }
+  //   let packageList: string[];
+  //   if (typeof packages === "string") {
+  //     packageList = this._sanitizePythonPackages(
+  //       this._loadRequirementsFile(packages)
+  //     );
+  //   } else {
+  //     packageList = packages;
+  //   }
 
-    // Add the packages to the existing list
-    this.config.pythonPackages = [
-      ...this.config.pythonPackages,
-      ...packageList,
-    ];
+  //   // Add the packages to the existing list
+  //   this.config.pythonPackages = [
+  //     ...this.config.pythonPackages,
+  //     ...packageList,
+  //   ];
 
-    return this;
-  }
+  //   return this;
+  // }
 
   /**
    * Add Python packages that will be installed when building the image.
@@ -350,30 +351,30 @@ export class Image {
    * @param packages The Python packages to add or the path to a requirements.txt file.
    * @returns The image instance.
    */
-  addPythonPackages(packages: string[] | string): Image {
-    let packageList: string[];
-    if (typeof packages === "string") {
-      try {
-        packageList = this._sanitizePythonPackages(
-          this._loadRequirementsFile(packages)
-        );
-      } catch (error) {
-        throw new Error(
-          `Could not find valid requirements.txt file at ${packages}. Libraries must be specified as a list of valid package names or a path to a requirements.txt file.`
-        );
-      }
-    } else {
-      packageList = packages;
-    }
+  // addPythonPackages(packages: string[] | string): Image {
+  //   let packageList: string[];
+  //   if (typeof packages === "string") {
+  //     try {
+  //       packageList = this._sanitizePythonPackages(
+  //         this._loadRequirementsFile(packages)
+  //       );
+  //     } catch (error) {
+  //       throw new Error(
+  //         `Could not find valid requirements.txt file at ${packages}. Libraries must be specified as a list of valid package names or a path to a requirements.txt file.`
+  //       );
+  //     }
+  //   } else {
+  //     packageList = packages;
+  //   }
 
-    // Add the packages to the existing list
-    this.config.pythonPackages = [
-      ...this.config.pythonPackages,
-      ...packageList,
-    ];
+  //   // Add the packages to the existing list
+  //   this.config.pythonPackages = [
+  //     ...this.config.pythonPackages,
+  //     ...packageList,
+  //   ];
 
-    return this;
-  }
+  //   return this;
+  // }
 
   /**
    * Add a local path to the image.
@@ -444,20 +445,20 @@ export class Image {
   /**
    * Sync files using FileSyncer
    */
-  async syncFiles(
-    contextDir?: string,
-    cacheObjectId: boolean = true
-  ): Promise<string> {
-    const { FileSyncer } = await import("../../sync");
-    const syncer = new FileSyncer(contextDir || "./");
-    const result = await syncer.sync([], [], cacheObjectId);
+  // async syncFiles(
+  //   contextDir?: string,
+  //   cacheObjectId: boolean = true
+  // ): Promise<string> {
+  //   const { FileSyncer } = await import("../../sync");
+  //   const syncer = new FileSyncer(contextDir || "./");
+  //   const result = await syncer.sync([], [], cacheObjectId);
 
-    if (!result.success) {
-      throw new Error("File sync failed");
-    }
+  //   if (!result.success) {
+  //     throw new Error("File sync failed");
+  //   }
 
-    return result.objectId;
-  }
+  //   return result.objectId;
+  // }
 
   getCredentialsFromEnv(): Record<string, string> {
     if (typeof process === "undefined") {
@@ -496,18 +497,18 @@ export class Image {
     return sanitized;
   }
 
-  private _loadRequirementsFile(filePath: string): string[] {
-    try {
-      const content = fs.readFileSync(filePath, "utf8");
-      const lines = content
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-      return lines;
-    } catch (error) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-  }
+  // private _loadRequirementsFile(filePath: string): string[] {
+  //   try {
+  //     const content = fs.readFileSync(filePath, "utf8");
+  //     const lines = content
+  //       .split("\n")
+  //       .map((line) => line.trim())
+  //       .filter((line) => line.length > 0);
+  //     return lines;
+  //   } catch (error) {
+  //     throw new Error(`File not found: ${filePath}`);
+  //   }
+  // }
 
   private _processCredentials(creds: ImageCredentials): Record<string, string> {
     if (Array.isArray(creds)) {

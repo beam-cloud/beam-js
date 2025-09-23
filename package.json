@@ -26,8 +26,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@types/archiver": "^6.0.3",
-    "archiver": "^7.0.1",
     "axios": "^1.7.7",
     "commander": "^12.1.0",
     "jest": "^30.1.3",

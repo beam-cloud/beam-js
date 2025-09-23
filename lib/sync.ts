@@ -11,8 +11,8 @@ import {
 import { readdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve, relative } from "path";
-import { formatBytes, uploadToPresignedUrl } from "./util";
-import archiver from "archiver";
+// import { formatBytes, uploadToPresignedUrl } from "./util"; // Disabled with sync
+// import archiver from "archiver"; // Disabled: archiver uses fs and breaks in browsers
 import axios from "axios";
 import beamClient from "./index";
 
@@ -237,108 +237,10 @@ export class FileSyncer {
     size: number;
     hash: string;
   }> {
-    const tempZipPath = join(tmpdir(), `beam-sync-${Date.now()}.zip`);
-    const output = createWriteStream(tempZipPath);
-    const archive = archiver("zip", {
-      zlib: { level: 9 }, // Maximum compression
-      forceLocalTime: true, // Better compatibility
-      store: false, // Always compress
-    });
-
-    let totalFiles = 0;
-    let processedFiles = 0;
-
-    // Enhanced event handling
-    archive.on("error", (err) => {
-      console.error("Archive error:", err);
-      throw err;
-    });
-
-    archive.on("warning", (err) => {
-      if (err.code === "ENOENT") {
-        console.warn("File not found (skipping):", err.path);
-      } else {
-        console.warn("Archive warning:", err);
-      }
-    });
-
-    // Progress tracking
-    archive.on("entry", (entry) => {
-      processedFiles++;
-      if (totalFiles > 0) {
-        const progress = ((processedFiles / totalFiles) * 100).toFixed(1);
-        console.log(
-          `Progress: ${progress}% (${processedFiles}/${totalFiles}) - ${entry.name}`
-        );
-      }
-    });
-
-    // Handle output stream errors
-    output.on("error", (err) => {
-      console.error("Output stream error:", err);
-      throw err;
-    });
-
-    // Pipe archive data to the file
-    archive.pipe(output);
-
-    // Count total files first for progress tracking
-    const allFiles: string[] = [];
-    for await (const filePath of this.collectFiles()) {
-      allFiles.push(filePath);
-    }
-    totalFiles = allFiles.length;
-
-    console.log(`Archiving ${totalFiles} files...`);
-
-    for (const filePath of allFiles) {
-      try {
-        const relativePath = relative(this.rootDir, filePath);
-        const stats = statSync(filePath);
-
-        if (stats.isFile()) {
-          archive.file(filePath, {
-            name: relativePath,
-            date: stats.mtime, // Preserve modification time
-          });
-        }
-      } catch (error) {
-        console.warn(`Failed to add ${filePath}: ${error}`);
-      }
-    }
-
-    // Finalize the archive - this triggers the actual compression
-    console.log("Finalizing archive...");
-    await archive.finalize();
-
-    // Wait for the output stream to close
-    await new Promise((resolve, reject) => {
-      output.on("close", () => {
-        console.log("Archive created successfully");
-        resolve(undefined);
-      });
-      output.on("error", reject);
-    });
-
-    const stats = statSync(tempZipPath);
-    const hash = await FileSyncer.calculateSha256(tempZipPath);
-
-    // Log compression statistics
-    const compressionRatio =
-      archive.pointer() > 0
-        ? ((stats.size / archive.pointer()) * 100).toFixed(1)
-        : "0";
-    console.log(
-      `Archive stats: ${formatBytes(
-        stats.size
-      )} (${compressionRatio}% compression ratio)`
+    // Disabled: archiver uses fs and breaks in browsers. For now, throw to indicate unsupported.
+    throw new Error(
+      "createZipFile is disabled in browser-safe builds (archiver removed)"
     );
-
-    return {
-      filePath: tempZipPath,
-      size: stats.size,
-      hash,
-    };
   }
 
   private async headObject(hash: string): Promise<HeadObjectResponse> {
@@ -394,10 +296,11 @@ export class FileSyncer {
   ): Promise<FileSyncResult> {
     console.log("Syncing files");
 
-    this.initIgnoreFile();
+    // this.initIgnoreFile(); // Disabled: uses Node fs
 
     if (!ignorePatterns || ignorePatterns.length === 0) {
-      this.ignorePatterns = this.readIgnoreFile();
+      // this.ignorePatterns = this.readIgnoreFile(); // Disabled: uses Node fs
+      this.ignorePatterns = [];
     } else {
       this.ignorePatterns = ignorePatterns;
     }
@@ -408,70 +311,16 @@ export class FileSyncer {
       this.includePatterns = includePatterns;
     }
 
-    const { filePath: tempZipPath, size, hash } = await this.createZipFile();
+    // const { filePath: tempZipPath, size, hash } = await this.createZipFile();
+    // Temporarily disable sync that requires zipping since archiver is removed
+    console.error("Sync disabled: archiving removed for browser compatibility");
+    return { success: false, objectId: "" };
 
-    if (!this.ignorePatterns.includes("*")) {
-      console.log(`Collected object is ${formatBytes(size)}`);
-    }
+    // if (!this.ignorePatterns.includes("*")) {
+    //   console.log(`Collected object is ${formatBytes(size)}`);
+    // }
 
-    try {
-      const headResponse = await this.headObject(hash);
-
-      if (headResponse.exists) {
-        if (!headResponse.ok) {
-          console.error("File sync failed");
-          return { success: false, objectId: "" };
-        }
-        console.log("Files already synced");
-
-        if (this.isWorkspaceDir && cacheObjectId) {
-          setWorkspaceObjectId(headResponse.objectId);
-        }
-        return { success: true, objectId: headResponse.objectId };
-      }
-
-      const metadata: ObjectMetadata = { name: hash, size };
-
-      if (!headResponse.useWorkspaceStorage) {
-        console.error(
-          "Streaming upload not implemented. Please migrate to use workspace storage. Contact support@beam.cloud for assistance."
-        );
-        return { success: false, objectId: "" };
-      }
-
-      const createResponse = await this.createObject({
-        objectMetadata: metadata,
-        hash,
-        size,
-        overwrite: true,
-      });
-
-      if (createResponse.ok) {
-        const uploadSuccess = await uploadToPresignedUrl(
-          createResponse.presignedUrl,
-          tempZipPath
-        );
-
-        if (uploadSuccess) {
-          if (this.isWorkspaceDir && cacheObjectId) {
-            setWorkspaceObjectId(createResponse.objectId);
-          }
-          return { success: true, objectId: createResponse.objectId };
-        } else {
-          console.error("File sync failed");
-          return { success: false, objectId: "" };
-        }
-      } else {
-        console.error("File sync failed");
-        return { success: false, objectId: "" };
-      }
-    } finally {
-      // Clean up temporary file
-      try {
-        unlinkSync(tempZipPath);
-      } catch (error) {
-        console.warn(`Failed to clean up temporary file: ${error}`);
-      }
-    }
+    // Archiver-dependent sync flow disabled for browser compatibility.
+    // try { /* ... */ } finally { /* ... */ }
   }
 }

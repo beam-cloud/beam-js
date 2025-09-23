@@ -1,6 +1,6 @@
 import { Schema } from "lib";
 import { GpuTypeAlias } from "./types/common";
-import { createReadStream, statSync } from "fs";
+// import { createReadStream, statSync } from "fs"; // Disabled: Node fs is not available in browsers
 import axios from "axios";
 
 export const snakeCaseToCamelCaseKeys = (obj: any): any => {
@@ -164,43 +164,43 @@ export const schemaToApi = (pySchema?: Schema): any => {
   };
 };
 
-export const uploadToPresignedUrl = async (
-  presignedUrl: string,
-  filePath: string
-): Promise<boolean> => {
-  try {
-    const stats = statSync(filePath);
-    const fileStream = createReadStream(filePath);
+// export const uploadToPresignedUrl = async (
+//   presignedUrl: string,
+//   filePath: string
+// ): Promise<boolean> => {
+//   try {
+//     const stats = statSync(filePath);
+//     const fileStream = createReadStream(filePath);
 
-    console.log(`Uploading ${formatBytes(stats.size)} to cloud storage...`);
+//     console.log(`Uploading ${formatBytes(stats.size)} to cloud storage...`);
 
-    await axios.put(presignedUrl, fileStream, {
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Length": stats.size.toString(),
-      },
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
-      timeout: 300000, // 5 minute timeout for large files
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          const progress = (
-            (progressEvent.loaded / progressEvent.total) *
-            100
-          ).toFixed(1);
-          console.log(
-            `Upload progress: ${progress}% (${formatBytes(
-              progressEvent.loaded
-            )}/${formatBytes(progressEvent.total)})`
-          );
-        }
-      },
-    });
+//     await axios.put(presignedUrl, fileStream, {
+//       headers: {
+//         "Content-Type": "application/zip",
+//         "Content-Length": stats.size.toString(),
+//       },
+//       maxBodyLength: Infinity,
+//       maxContentLength: Infinity,
+//       timeout: 300000, // 5 minute timeout for large files
+//       onUploadProgress: (progressEvent) => {
+//         if (progressEvent.total) {
+//           const progress = (
+//             (progressEvent.loaded / progressEvent.total) *
+//             100
+//           ).toFixed(1);
+//           console.log(
+//             `Upload progress: ${progress}% (${formatBytes(
+//               progressEvent.loaded
+//             )}/${formatBytes(progressEvent.total)})`
+//           );
+//         }
+//       },
+//     });
 
-    console.log("Upload completed successfully ✅");
-    return true;
-  } catch (error) {
-    console.error("Upload failed:", error);
-    return false;
-  }
-};
+//     console.log("Upload completed successfully ✅");
+//     return true;
+//   } catch (error) {
+//     console.error("Upload failed:", error);
+//     return false;
+//   }
+// };

@@ -1,4 +1,4 @@
-import * as fs from "fs";
+// import * as fs from "fs"; // Disabled: Node fs is not available in browsers
 import { Pod, PodInstance } from "./pod";
 import { CreateStubConfig } from "./stub";
 import { EStubType } from "../../types/stub";
@@ -791,46 +791,46 @@ export class SandboxFileSystem {
   }
 
   /** Upload a local file to the sandbox. */
-  public async uploadFile(
-    localPath: string,
-    sandboxPath: string
-  ): Promise<void> {
-    const content = fs.readFileSync(localPath);
-    const resp = await beamClient.request({
-      method: "POST",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/upload`,
-      data: {
-        containerPath: sandboxPath,
-        mode: 0o644,
-        data: content.toString("base64"),
-      },
-    });
-    const data = resp.data as { ok: boolean; errorMsg?: string };
-    if (!data.ok)
-      throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to upload file"
-      );
-  }
+  // public async uploadFile(
+  //   localPath: string,
+  //   sandboxPath: string
+  // ): Promise<void> {
+  //   const content = fs.readFileSync(localPath);
+  //   const resp = await beamClient.request({
+  //     method: "POST",
+  //     url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/upload`,
+  //     data: {
+  //       containerPath: sandboxPath,
+  //       mode: 0o644,
+  //       data: content.toString("base64"),
+  //     },
+  //   });
+  //   const data = resp.data as { ok: boolean; errorMsg?: string };
+  //   if (!data.ok)
+  //     throw new SandboxFileSystemError(
+  //       data.errorMsg || "Failed to upload file"
+  //     );
+  // }
 
   /** Download a file from the sandbox to a local path. */
-  public async downloadFile(
-    sandboxPath: string,
-    localPath: string
-  ): Promise<void> {
-    const resp = await beamClient.request({
-      method: "GET",
-      url: `api/v1/gateway/pods/${
-        this.sandbox_instance.containerId
-      }/files/download/${encodeURIComponent(sandboxPath)}`,
-    });
-    const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
-    if (!data.ok || !data.data)
-      throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to download file"
-      );
-    const buf = Buffer.from(data.data, "base64");
-    fs.writeFileSync(localPath, buf);
-  }
+  // public async downloadFile(
+  //   sandboxPath: string,
+  //   localPath: string
+  // ): Promise<void> {
+  //   const resp = await beamClient.request({
+  //     method: "GET",
+  //     url: `api/v1/gateway/pods/${
+  //       this.sandbox_instance.containerId
+  //     }/files/download/${encodeURIComponent(sandboxPath)}`,
+  //   });
+  //   const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
+  //   if (!data.ok || !data.data)
+  //     throw new SandboxFileSystemError(
+  //       data.errorMsg || "Failed to download file"
+  //     );
+  //   const buf = Buffer.from(data.data, "base64");
+  //   fs.writeFileSync(localPath, buf);
+  // }
 
   /** Get the metadata of a file in the sandbox. */
   public async statFile(sandboxPath: string): Promise<SandboxFileInfo> {
