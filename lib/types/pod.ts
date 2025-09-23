@@ -216,6 +216,12 @@ export interface PodSandboxExposePortResponse {
   errorMsg: string;
 }
 
+export interface PodSandboxListUrlsResponse {
+  ok: boolean;
+  urls: Record<string, string>;
+  errorMsg: string;
+}
+
 // No unexpose port request?
 
 export interface PodSandboxFindInFilesRequest {
