@@ -106,27 +106,25 @@ export class Sandbox extends Pod {
   public async createFromSnapshot(
     snapshotId: string
   ): Promise<SandboxInstance> {
-    const parts = snapshotId.split("-");
-    const stubId = parts.slice(1, 6).join("-");
-
     // eslint-disable-next-line no-console
     console.log(`Creating sandbox from snapshot: ${snapshotId}`);
 
     const createResp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods`,
-      data: { stubId, checkpointId: snapshotId },
+      data: { checkpointId: snapshotId },
     });
     const body = createResp.data as {
       ok: boolean;
       containerId: string;
       errorMsg?: string;
+      stubId?: string;
     };
 
     if (!body.ok) {
       return new SandboxInstance(
         {
-          stubId,
+          stubId: body.stubId || "",
           containerId: "",
           url: "",
           ok: false,
@@ -153,7 +151,7 @@ export class Sandbox extends Pod {
 
     return new SandboxInstance(
       {
-        stubId,
+        stubId: body.stubId || "",
         containerId: body.containerId,
         url: "",
         ok: body.ok,
