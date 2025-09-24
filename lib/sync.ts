@@ -8,7 +8,7 @@ import {
   readFileSync,
   unlinkSync,
 } from "fs";
-import { readdir } from "fs/promises";
+// import { readdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve, relative } from "path";
 // import { formatBytes, uploadToPresignedUrl } from "./util"; // Disabled with sync
