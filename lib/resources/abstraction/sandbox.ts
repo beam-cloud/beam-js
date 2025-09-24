@@ -106,9 +106,6 @@ export class Sandbox extends Pod {
   public async createFromSnapshot(
     snapshotId: string
   ): Promise<SandboxInstance> {
-    const parts = snapshotId.split("-");
-    // const stubId = parts.slice(1, 6).join("-");
-
     // eslint-disable-next-line no-console
     console.log(`Creating sandbox from snapshot: ${snapshotId}`);
 
@@ -117,7 +114,6 @@ export class Sandbox extends Pod {
       url: `api/v1/gateway/pods`,
       data: { checkpointId: snapshotId },
     });
-    console.log("createResp", createResp);
     const body = createResp.data as {
       ok: boolean;
       containerId: string;
@@ -208,7 +204,6 @@ export class Sandbox extends Pod {
       url: `api/v1/gateway/pods`,
       data: { stubId: this.stub.stubId },
     });
-    console.log("createResp", createResp);
     const body = createResp.data as {
       ok: boolean;
       containerId: string;
