@@ -33,6 +33,7 @@ export interface CreatePodResponse {
   ok: boolean;
   containerId: string;
   errorMsg?: string;
+  stubId?: string;
 }
 
 export interface StopPodRequest {
