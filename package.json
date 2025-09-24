@@ -1,6 +1,6 @@
 {
   "name": "@beamcloud/beam-js",
-  "version": "1.0.0-rc.8",
+  "version": "1.0.0-rc.12",
   "description": "Javascript SDK to interact with Beam",
   "main": "dist/index.js",
   "type": "module",
@@ -22,6 +22,7 @@
   "author": "John <john@slai.io>",
   "license": "MIT",
   "scripts": {
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
     "test": "jest"
   },
@@ -71,6 +72,8 @@
     "default": "./dist/*.mjs"
   },
   "files": [
-    "*"
+    "dist/**",
+    "README.md",
+    "LICENSE"
   ]
 }
