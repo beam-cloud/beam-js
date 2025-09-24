@@ -167,59 +167,59 @@ export class FileSyncer {
     });
   }
 
-  private shouldInclude(filePath: string): boolean {
-    if (this.includePatterns.length === 0) {
-      return true;
-    }
+  // private shouldInclude(filePath: string): boolean {
+  //   if (this.includePatterns.length === 0) {
+  //     return true;
+  //   }
 
-    const relativePath = relative(this.rootDir, filePath);
+  //   const relativePath = relative(this.rootDir, filePath);
 
-    return this.includePatterns.some((pattern) => {
-      if (pattern.includes("*")) {
-        const regex = new RegExp(pattern.replace(/\*/g, ".*"));
-        return regex.test(relativePath);
-      }
-      return relativePath === pattern || relativePath.startsWith(pattern + "/");
-    });
-  }
+  //   return this.includePatterns.some((pattern) => {
+  //     if (pattern.includes("*")) {
+  //       const regex = new RegExp(pattern.replace(/\*/g, ".*"));
+  //       return regex.test(relativePath);
+  //     }
+  //     return relativePath === pattern || relativePath.startsWith(pattern + "/");
+  //   });
+  // }
 
-  private async *collectFiles(): AsyncGenerator<string> {
-    if (this.ignorePatterns.includes("*")) {
-      return;
-    }
+  // private async *collectFiles(): AsyncGenerator<string> {
+  //   if (this.ignorePatterns.includes("*")) {
+  //     return;
+  //   }
 
-    console.log(`Collecting files from ${this.rootDir}`);
+  //   console.log(`Collecting files from ${this.rootDir}`);
 
-    const walk = async (dir: string): Promise<string[]> => {
-      const files: string[] = [];
-      try {
-        const entries = await readdir(dir, { withFileTypes: true });
+  //   const walk = async (dir: string): Promise<string[]> => {
+  //     const files: string[] = [];
+  //     try {
+  //       const entries = await readdir(dir, { withFileTypes: true });
 
-        for (const entry of entries) {
-          const fullPath = join(dir, entry.name);
+  //       for (const entry of entries) {
+  //         const fullPath = join(dir, entry.name);
 
-          if (entry.isDirectory()) {
-            if (!this.shouldIgnore(fullPath)) {
-              const subFiles = await walk(fullPath);
-              files.push(...subFiles);
-            }
-          } else if (entry.isFile()) {
-            if (!this.shouldIgnore(fullPath) && this.shouldInclude(fullPath)) {
-              files.push(fullPath);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn(`Failed to read directory ${dir}: ${error}`);
-      }
-      return files;
-    };
+  //         if (entry.isDirectory()) {
+  //           if (!this.shouldIgnore(fullPath)) {
+  //             const subFiles = await walk(fullPath);
+  //             files.push(...subFiles);
+  //           }
+  //         } else if (entry.isFile()) {
+  //           if (!this.shouldIgnore(fullPath) && this.shouldInclude(fullPath)) {
+  //             files.push(fullPath);
+  //           }
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.warn(`Failed to read directory ${dir}: ${error}`);
+  //     }
+  //     return files;
+  //   };
 
-    const allFiles = await walk(this.rootDir);
-    for (const file of allFiles) {
-      yield file;
-    }
-  }
+  //   const allFiles = await walk(this.rootDir);
+  //   for (const file of allFiles) {
+  //     yield file;
+  //   }
+  // }
 
   private static calculateSha256(filePath: string): Promise<string> {
     return new Promise((resolve, reject) => {
