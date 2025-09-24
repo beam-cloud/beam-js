@@ -71,6 +71,8 @@
     "default": "./dist/*.mjs"
   },
   "files": [
-    "*"
+    "dist/**",
+    "README.md",
+    "LICENSE"
   ]
 }
