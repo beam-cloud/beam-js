@@ -342,8 +342,6 @@ export class StubBuilder {
         tcp: this.config.tcp,
       };
 
-      console.log(camelCaseToSnakeCaseKeys(stubRequest));
-
       try {
         let stubResponse: GetOrCreateStubResponse;
 
