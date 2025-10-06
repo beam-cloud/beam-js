@@ -543,6 +543,8 @@ export class SandboxProcessStream {
 
   /**
    * Fetch and return all available output at this moment.
+   * Deprecated, use read() instead.
+   * TODO: Remove this method
    */
   public async readAll(): Promise<string> {
     let data = this._buffer;
