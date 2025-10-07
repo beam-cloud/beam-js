@@ -288,4 +288,15 @@ export interface PodSandboxSnapshotResponse {
   checkpointId: string;
 }
 
+export interface PodSandboxSnapshotFilesystemRequest {
+  stubId: string;
+  containerId: string;
+}
+
+export interface PodSandboxSnapshotFilesystemResponse {
+  ok: boolean;
+  errorMsg: string;
+  checkpointId: string;
+}
+
 // Store requests here?
