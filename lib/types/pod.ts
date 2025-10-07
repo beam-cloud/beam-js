@@ -296,7 +296,7 @@ export interface PodSandboxSnapshotFilesystemRequest {
 export interface PodSandboxSnapshotFilesystemResponse {
   ok: boolean;
   errorMsg: string;
-  checkpointId: string;
+  imageId: string;
 }
 
 // Store requests here?

@@ -303,23 +303,28 @@ export class SandboxInstance extends PodInstance {
   }
 
   /**
-   * Create a snapshot of the sandbox filesystem
-   * @returns string - The snapshot ID.
+   * Create an image from the sandbox filesystem
+   * @returns string - The image ID.
    */
-  public async snapshotFilesystem(): Promise<string> {
-    console.log(`Creating snapshot of filesystem of: ${this.containerId}`);
+  public async createImageFromFilesystem(): Promise<string> {
+    console.log(
+      `Creating image from filesystem of: ${this.containerId}. This may take a few minutes...`
+    );
 
     const resp = await beamClient.request({
       method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/create-image-from-filesystem`,
       data: { stubId: this.stubId },
+      timeout: 600000,
     });
+    console.log("resp", resp.data);
     const data = resp.data as PodSandboxSnapshotFilesystemResponse;
+    console.log("data", data);
     if (!data.ok)
       throw new SandboxProcessError(
-        data.errorMsg || "Failed to snapshot filesystem"
+        data.errorMsg || "Failed to create image from filesystem"
       );
-    return data.checkpointId;
+    return data.imageId;
   }
 
   /** Get the ID of the sandbox. */
