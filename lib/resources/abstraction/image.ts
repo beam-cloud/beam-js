@@ -45,7 +45,7 @@ export class Image {
     ignorePython = true,
     includeFilesPatterns = [],
     buildCtxObject = "",
-    snapshotId = "",
+    imageId = "",
   }: CreateImageConfig) {
     this.id = "";
 
@@ -65,7 +65,7 @@ export class Image {
     this.config.ignorePython = ignorePython;
     this.config.includeFilesPatterns = includeFilesPatterns;
     this.config.buildCtxObject = buildCtxObject;
-    this.config.snapshotId = snapshotId;
+    this.config.imageId = imageId;
   }
 
   static async fromDockerfile(
@@ -183,9 +183,9 @@ export class Image {
     return response.data;
   }
 
-  static fromSnapshot(snapshotId: string): Image {
+  static fromId(imageId: string): Image {
     const image = new Image({});
-    image.config.snapshotId = snapshotId;
+    image.config.imageId = imageId;
     return image;
   }
 
@@ -204,7 +204,7 @@ export class Image {
       secrets: this.config.secrets,
       gpu: this.config.gpu,
       ignorePython: this.config.ignorePython,
-      snapshotId: this.config.snapshotId,
+      imageId: this.config.imageId,
     };
 
     const response = await this.verifyImageBuild(request);

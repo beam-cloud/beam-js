@@ -4,6 +4,7 @@ import { CreateStubConfig } from "./stub";
 import { EStubType } from "../../types/stub";
 import type {
   PodSandboxSnapshotResponse,
+  PodSandboxCreateImageFromFilesystemResponse,
   PodSandboxUpdateTtlResponse,
   PodSandboxExposePortResponse,
   PodSandboxExecResponse,
@@ -282,9 +283,9 @@ export class SandboxInstance extends PodInstance {
   }
 
   /**
-   * Create a snapshot of the sandbox filesystem.
+   * Create a snapshot of the sandbox memory and filesystem.
    *
-   * Returns: string - The snapshot ID.
+   * @returns string - The snapshot ID.
    */
   public async snapshot(): Promise<string> {
     // eslint-disable-next-line no-console
@@ -299,6 +300,31 @@ export class SandboxInstance extends PodInstance {
     if (!data.ok)
       throw new SandboxProcessError(data.errorMsg || "Failed to snapshot");
     return data.checkpointId;
+  }
+
+  /**
+   * Create an image from the sandbox filesystem
+   * @returns string - The image ID.
+   */
+  public async createImageFromFilesystem(): Promise<string> {
+    console.log(
+      `Creating image from filesystem of: ${this.containerId}. This may take a few minutes...`
+    );
+
+    const resp = await beamClient.request({
+      method: "POST",
+      url: `/api/v1/gateway/pods/${this.containerId}/create-image-from-filesystem`,
+      data: { stubId: this.stubId },
+      timeout: 600000,
+    });
+    console.log("resp", resp.data);
+    const data = resp.data as PodSandboxCreateImageFromFilesystemResponse;
+    console.log("data", data);
+    if (!data.ok)
+      throw new SandboxProcessError(
+        data.errorMsg || "Failed to create image from filesystem"
+      );
+    return data.imageId;
   }
 
   /** Get the ID of the sandbox. */

@@ -83,7 +83,7 @@ export interface VerifyImageBuildRequest {
   secrets?: string[];
   gpu?: string;
   ignorePython?: boolean;
-  snapshotId?: string;
+  imageId?: string;
 }
 
 export interface VerifyImageBuildResponse {
@@ -111,7 +111,7 @@ export interface ImageConfig {
   ignorePython: boolean;
   includeFilesPatterns: string[];
   buildCtxObject: string;
-  snapshotId: string;
+  imageId: string;
 }
 
 export class ImageCredentialValueNotFound extends Error {
