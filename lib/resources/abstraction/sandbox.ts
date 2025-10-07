@@ -4,7 +4,7 @@ import { CreateStubConfig } from "./stub";
 import { EStubType } from "../../types/stub";
 import type {
   PodSandboxSnapshotResponse,
-  PodSandboxSnapshotFilesystemResponse,
+  PodSandboxCreateImageFromFilesystemResponse,
   PodSandboxUpdateTtlResponse,
   PodSandboxExposePortResponse,
   PodSandboxExecResponse,
@@ -318,7 +318,7 @@ export class SandboxInstance extends PodInstance {
       timeout: 600000,
     });
     console.log("resp", resp.data);
-    const data = resp.data as PodSandboxSnapshotFilesystemResponse;
+    const data = resp.data as PodSandboxCreateImageFromFilesystemResponse;
     console.log("data", data);
     if (!data.ok)
       throw new SandboxProcessError(
