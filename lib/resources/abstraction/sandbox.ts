@@ -524,16 +524,27 @@ export class SandboxProcessStream {
     return newOutput;
   }
 
-  /** Return whatever output is currently available in the stream. */
-  public read(): string {
+  /**
+   * Fetch and return all available output at this moment.
+   */
+  public async read(): Promise<string> {
     let data = this._buffer;
     this._buffer = "";
-    // Intentionally non-async; best-effort immediate read
+    while (true) {
+      const chunk = await this._fetch_next_chunk();
+      if (chunk) {
+        data += chunk;
+      } else {
+        break;
+      }
+    }
     return data;
   }
 
   /**
    * Fetch and return all available output at this moment.
+   * Deprecated, use read() instead.
+   * TODO: Remove this method
    */
   public async readAll(): Promise<string> {
     let data = this._buffer;
@@ -711,8 +722,8 @@ export class SandboxProcess {
         } as AsyncIterableIterator<string>;
       }
 
-      public read(): string {
-        return self.stdout.read() + self.stderr.read();
+      public async read(): Promise<string> {
+        return (await self.stdout.read()) + (await self.stderr.read());
       }
     }
     return new CombinedStream();
