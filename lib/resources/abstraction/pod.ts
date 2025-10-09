@@ -231,7 +231,7 @@ export class PodInstance {
   public async terminate(): Promise<boolean> {
     const response = await beamClient.request({
       method: "POST",
-      url: `api/v1/gateway/pods/${this.containerId}/kill`,
+      url: `api/v1/gateway/containers/${this.containerId}/stop`,
       data: {},
     });
     return response.ok;

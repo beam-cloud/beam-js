@@ -36,11 +36,11 @@ export interface CreatePodResponse {
   stubId?: string;
 }
 
-export interface StopPodRequest {
+export interface StopContainerRequest {
   containerId: string;
 }
 
-export interface StopPodResponse {
+export interface StopContainerResponse {
   ok: boolean;
   errorMsg?: string;
 }

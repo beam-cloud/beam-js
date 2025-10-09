@@ -377,6 +377,17 @@ export class SandboxInstance extends PodInstance {
   }
 
   /**
+   * Terminate the sandbox instance.
+   */
+  public async terminate(): Promise<boolean> {
+    const result = await super.terminate();
+    if (result) {
+      this.terminated = true;
+    }
+    return result;
+  }
+
+  /**
    * Run Python code in the sandbox.
    *
    * Parameters:
