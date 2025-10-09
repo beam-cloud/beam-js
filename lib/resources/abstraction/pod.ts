@@ -4,6 +4,7 @@ import {
   PodInstanceData,
   EPodStatus,
 } from "../../types/pod";
+import { StopContainerResponse } from "../../types/pod";
 import { StubBuilder, CreateStubConfig } from "./stub";
 import {
   EStubType,
@@ -234,6 +235,7 @@ export class PodInstance {
       url: `api/v1/gateway/containers/${this.containerId}/stop`,
       data: {},
     });
-    return response.ok;
+    const data = response.data as StopContainerResponse;
+    return data.ok;
   }
 }
