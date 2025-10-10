@@ -57,7 +57,7 @@ export class Sandbox extends Pod {
   }
 
   /**
-   * Connect to an existing sandbox instance by ID (static method).
+   * Connect to an existing sandbox instance by ID.
    *
    * Parameters:
    * - id (string): The container ID of the existing sandbox instance.
