@@ -66,7 +66,7 @@ export class Sandbox extends Pod {
    *
    * Throws: SandboxConnectionError if the connection fails.
    */
-  public async connect(id: string): Promise<SandboxInstance> {
+  public static async connect(id: string): Promise<SandboxInstance> {
     const resp = await beamClient.request({
       method: "POST",
       url: `api/v1/gateway/pods/${id}/connect`,
@@ -84,6 +84,7 @@ export class Sandbox extends Pod {
       );
     }
 
+    const sandbox = new Sandbox({ name: id });
     return new SandboxInstance(
       {
         containerId: id,
@@ -92,7 +93,7 @@ export class Sandbox extends Pod {
         errorMsg: "",
         stubId: data.stubId || "",
       },
-      this
+      sandbox
     );
   }
 
