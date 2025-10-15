@@ -104,8 +104,10 @@ export class Sandbox extends Pod {
    * - snapshotId (string): The ID of the snapshot to create the sandbox from.
    *
    * Returns: SandboxInstance - A new sandbox instance ready for use.
+   *
+   * Throws: SandboxConnectionError if the creation fails.
    */
-  public async createFromSnapshot(
+  public static async createFromSnapshot(
     snapshotId: string
   ): Promise<SandboxInstance> {
     // eslint-disable-next-line no-console
@@ -124,33 +126,15 @@ export class Sandbox extends Pod {
     };
 
     if (!body.ok) {
-      return new SandboxInstance(
-        {
-          stubId: body.stubId || "",
-          containerId: "",
-          url: "",
-          ok: false,
-          errorMsg: body.errorMsg || "",
-        },
-        this
+      throw new SandboxConnectionError(
+        body.errorMsg || "Failed to create sandbox from snapshot"
       );
     }
 
     // eslint-disable-next-line no-console
     console.log(`Sandbox created successfully ===> ${body.containerId}`);
 
-    if ((this.stub.config.keepWarmSeconds as number) < 0) {
-      // eslint-disable-next-line no-console
-      console.log(
-        "This sandbox has no timeout, it will run until it is shut down manually."
-      );
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(
-        `This sandbox will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
-      );
-    }
-
+    const sandbox = new Sandbox({ name: body.containerId });
     return new SandboxInstance(
       {
         stubId: body.stubId || "",
@@ -159,7 +143,7 @@ export class Sandbox extends Pod {
         ok: body.ok,
         errorMsg: body.errorMsg || "",
       },
-      this
+      sandbox
     );
   }
 
