@@ -1,193 +1,211 @@
 import { FileSyncer } from "../lib/sync";
+import { join } from "path";
 
-describe("FileSyncer - shouldIgnore", () => {
+describe("FileSyncer - GitIgnore-Compliant Pattern Matching", () => {
+  const ROOT_DIR = "/tmp/test-root";
+
   // Helper to test shouldIgnore by accessing private method
   const testShouldIgnore = (
     patterns: string[],
     filePath: string,
-    rootDir: string = "/test"
+    isDirectory: boolean = false
   ): boolean => {
-    const syncer = new FileSyncer(rootDir);
-    // Access private ignorePatterns property
+    const syncer = new FileSyncer(ROOT_DIR);
     (syncer as any).ignorePatterns = patterns;
-    // Access private shouldIgnore method
-    return (syncer as any).shouldIgnore(`${rootDir}/${filePath}`);
+    const absolutePath = join(ROOT_DIR, filePath);
+    return (syncer as any).shouldIgnore(absolutePath, isDirectory);
   };
 
-  describe("wildcard patterns", () => {
-    test("* pattern ignores everything", () => {
+  // Helper to test shouldInclude
+  const testShouldInclude = (
+    patterns: string[],
+    filePath: string,
+    isDirectory: boolean = false
+  ): boolean => {
+    const syncer = new FileSyncer(ROOT_DIR);
+    (syncer as any).includePatterns = patterns;
+    const absolutePath = join(ROOT_DIR, filePath);
+    return (syncer as any).shouldInclude(absolutePath, isDirectory);
+  };
+
+  describe("Basic wildcard patterns", () => {
+    test("*.ext matches files with extension at any level", () => {
+      // In gitignore, *.log matches at any level unless pattern has /
+      expect(testShouldIgnore(["*.log"], "app.log")).toBe(true);
+      expect(testShouldIgnore(["*.log"], "src/app.log")).toBe(true);
+      expect(testShouldIgnore(["*.log"], "deep/nested/error.log")).toBe(true);
+    });
+
+    test("*.ext with different extensions", () => {
+      expect(testShouldIgnore(["*.pyc"], "module.pyc")).toBe(true);
+      expect(testShouldIgnore(["*.pyc"], "test.py")).toBe(false);
+      expect(testShouldIgnore(["*.js"], "app.js")).toBe(true);
+      expect(testShouldIgnore(["*.js"], "src/app.js")).toBe(true);
+    });
+
+    test("* pattern matches at any level", () => {
+      // In gitignore, * pattern matches files at any level
       expect(testShouldIgnore(["*"], "file.txt")).toBe(true);
       expect(testShouldIgnore(["*"], "src/file.ts")).toBe(true);
-      expect(testShouldIgnore(["*"], "deeply/nested/path/file.js")).toBe(true);
     });
 
-    test("*.log pattern ignores log files anywhere", () => {
-      expect(testShouldIgnore(["*.log"], "app.log")).toBe(true);
-      expect(testShouldIgnore(["*.log"], "error.log")).toBe(true);
-      expect(testShouldIgnore(["*.log"], "app.txt")).toBe(false);
-      expect(testShouldIgnore(["*.log"], "src/app.log")).toBe(true); // Wildcard matches anywhere
-    });
-
-    test("*.pyc pattern ignores Python compiled files", () => {
-      expect(testShouldIgnore(["*.pyc"], "module.pyc")).toBe(true);
-      expect(testShouldIgnore(["*.pyc"], "test.pyc")).toBe(true);
-      expect(testShouldIgnore(["*.pyc"], "module.py")).toBe(false);
+    test("wildcard in middle of pattern", () => {
+      expect(testShouldIgnore(["test*.js"], "test-utils.js")).toBe(true);
+      expect(testShouldIgnore(["test*.js"], "my-test-file.js")).toBe(false);
+      expect(testShouldIgnore(["*test.js"], "my-test.js")).toBe(true);
     });
   });
 
-  describe("glob patterns with **/", () => {
-    test("**/node_modules/ ignores paths containing node_modules/", () => {
-      // Pattern slices to "node_modules/" and uses .includes()
-      // Note: path.relative removes trailing slashes, so "node_modules/" becomes "node_modules"
-      // The pattern matches paths that contain "node_modules/" as a directory component
-      expect(
-        testShouldIgnore(["**/node_modules/"], "node_modules/package.json")
-      ).toBe(true);
-      expect(
-        testShouldIgnore(["**/node_modules/"], "src/node_modules/lib.js")
-      ).toBe(true);
-      expect(
-        testShouldIgnore(["**/node_modules/"], "deep/nested/node_modules/pkg/index.js")
-      ).toBe(true);
-      expect(testShouldIgnore(["**/node_modules/"], "node_modules")).toBe(
-        false
-      ); // Doesn't contain "node_modules/" with slash
-      expect(
-        testShouldIgnore(["**/node_modules/"], "node_modules_backup/file.js")
-      ).toBe(false);
+  describe("Double asterisk ** patterns", () => {
+    test("**/pattern matches at any depth", () => {
+      expect(testShouldIgnore(["**/node_modules"], "node_modules")).toBe(true);
+      expect(testShouldIgnore(["**/node_modules"], "src/node_modules")).toBe(true);
+      expect(testShouldIgnore(["**/node_modules"], "deep/nested/node_modules")).toBe(true);
+      expect(testShouldIgnore(["**/node_modules"], "node_modules_backup")).toBe(false);
     });
 
-    test("**/__pycache__/ ignores paths containing __pycache__/", () => {
+    test("**/directory/ matches directory at any depth", () => {
       expect(testShouldIgnore(["**/__pycache__/"], "__pycache__/module.pyc")).toBe(true);
-      expect(testShouldIgnore(["**/__pycache__/"], "src/__pycache__/test.pyc")).toBe(
-        true
-      );
-      expect(testShouldIgnore(["**/__pycache__/"], "__pycache__")).toBe(false); // No slash
-      expect(testShouldIgnore(["**/__pycache__/"], "__pycache__old/file.py")).toBe(
-        false
-      );
+      expect(testShouldIgnore(["**/__pycache__/"], "src/__pycache__/test.pyc")).toBe(true);
+      expect(testShouldIgnore(["**/__pycache__/"], "__pycache__old/file.py")).toBe(false);
     });
 
-    test("**/.git/ ignores paths containing .git/", () => {
-      expect(testShouldIgnore(["**/.git/"], ".git/config")).toBe(true);
-      expect(testShouldIgnore(["**/.git/"], "submodule/.git/HEAD")).toBe(true);
-      expect(testShouldIgnore(["**/.git/"], ".git")).toBe(false); // No slash
-      expect(testShouldIgnore(["**/.git/"], ".github/workflows/test.yml")).toBe(false);
+    test("**/*.ext matches files at any depth", () => {
+      expect(testShouldIgnore(["**/*.log"], "app.log")).toBe(true);
+      expect(testShouldIgnore(["**/*.log"], "src/app.log")).toBe(true);
+      expect(testShouldIgnore(["**/*.log"], "deep/nested/error.log")).toBe(true);
+      expect(testShouldIgnore(["**/*.log"], "app.txt")).toBe(false);
     });
 
-    test("**/*.pyc is checked as literal string *.pyc", () => {
-      // Pattern **/*.pyc starts with **/ so it slices to *.pyc and uses .includes()
-      // This checks for the LITERAL string "*.pyc" in the path, which is unusual
-      expect(testShouldIgnore(["**/*.pyc"], "path/to/*.pyc")).toBe(true); // Contains literal "*.pyc"
-      expect(testShouldIgnore(["**/*.pyc"], "module.pyc")).toBe(false); // Doesn't contain "*.pyc"
-      expect(testShouldIgnore(["**/*.pyc"], "src/module.pyc")).toBe(false);
-      // To match .pyc files anywhere, use just *.pyc without **/ prefix
-      expect(testShouldIgnore(["*.pyc"], "module.pyc")).toBe(true);
-      expect(testShouldIgnore(["*.pyc"], "src/module.pyc")).toBe(true);
-    });
-  });
-
-  describe("directory patterns with /**", () => {
-    test("dist/** ignores everything starting with dist", () => {
-      // Pattern dist/** checks startsWith("dist"), which also matches "distribution"
-      expect(testShouldIgnore(["dist/**"], "dist")).toBe(true);
-      expect(testShouldIgnore(["dist/**"], "dist/file.js")).toBe(true);
+    test("pattern/** matches everything inside directory", () => {
+      expect(testShouldIgnore(["dist/**"], "dist/bundle.js")).toBe(true);
       expect(testShouldIgnore(["dist/**"], "dist/nested/file.js")).toBe(true);
-      expect(testShouldIgnore(["dist/**"], "distribution/file.js")).toBe(
-        true
-      ); // Also matches because startsWith("dist")
       expect(testShouldIgnore(["dist/**"], "src/dist/file.js")).toBe(false);
     });
 
-    test("build/** ignores build directory contents", () => {
-      expect(testShouldIgnore(["build/**"], "build")).toBe(true);
-      expect(testShouldIgnore(["build/**"], "build/output.js")).toBe(true);
-      expect(testShouldIgnore(["build/**"], "src/build")).toBe(false);
-    });
-
-    test(".venv/** ignores virtual environment", () => {
-      expect(testShouldIgnore([".venv/**"], ".venv")).toBe(true);
-      expect(testShouldIgnore([".venv/**"], ".venv/bin/python")).toBe(true);
-      expect(testShouldIgnore([".venv/**"], "venv")).toBe(false);
+    test("a/**/b matches with zero or more directories between", () => {
+      expect(testShouldIgnore(["src/**/test.js"], "src/test.js")).toBe(true);
+      expect(testShouldIgnore(["src/**/test.js"], "src/utils/test.js")).toBe(true);
+      expect(testShouldIgnore(["src/**/test.js"], "src/deep/nested/test.js")).toBe(true);
+      expect(testShouldIgnore(["src/**/test.js"], "lib/test.js")).toBe(false);
     });
   });
 
-  describe("exact file matches", () => {
-    test("ignores exact filename in root", () => {
-      expect(testShouldIgnore([".gitignore"], ".gitignore")).toBe(true);
-      expect(testShouldIgnore([".gitignore"], "src/.gitignore")).toBe(false);
+  describe("Directory vs file matching with trailing slash", () => {
+    test("pattern/ only matches directories", () => {
+      // build/ should match directory but not file named build
+      expect(testShouldIgnore(["build/"], "build", true)).toBe(true); // directory
+      expect(testShouldIgnore(["build/"], "build", false)).toBe(false); // file
     });
 
-    test("ignores README.md in root only", () => {
+    test("directory patterns with trailing slash", () => {
+      expect(testShouldIgnore(["node_modules/"], "node_modules", true)).toBe(true);
+      expect(testShouldIgnore(["node_modules/"], "node_modules", false)).toBe(false);
+      expect(testShouldIgnore([".venv/"], ".venv", true)).toBe(true);
+      expect(testShouldIgnore([".venv/"], ".venv", false)).toBe(false);
+    });
+
+    test("pattern without trailing slash matches both", () => {
+      expect(testShouldIgnore(["build"], "build", true)).toBe(true);
+      expect(testShouldIgnore(["build"], "build", false)).toBe(true);
+    });
+  });
+
+  describe("Negation patterns", () => {
+    test("! negates previous ignore pattern", () => {
+      const patterns = ["*.log", "!important.log"];
+      expect(testShouldIgnore(patterns, "app.log")).toBe(true);
+      expect(testShouldIgnore(patterns, "important.log")).toBe(false); // negated
+      expect(testShouldIgnore(patterns, "error.log")).toBe(true);
+    });
+
+    test("negation pattern with directory", () => {
+      const patterns = ["build/**", "!build/keep.txt"];
+      expect(testShouldIgnore(patterns, "build/temp.txt")).toBe(true);
+      expect(testShouldIgnore(patterns, "build/keep.txt")).toBe(false); // negated
+    });
+
+    test("cannot re-include if parent directory is excluded", () => {
+      const patterns = ["node_modules/", "!node_modules/keep/"];
+      // If parent is excluded, children cannot be re-included
+      expect(testShouldIgnore(patterns, "node_modules", true)).toBe(true);
+    });
+  });
+
+  describe("Root anchoring with leading slash", () => {
+    test("/pattern only matches at root", () => {
+      expect(testShouldIgnore(["/README.md"], "README.md")).toBe(true);
+      expect(testShouldIgnore(["/README.md"], "docs/README.md")).toBe(false);
+    });
+
+    test("/dir/ matches directory only at root", () => {
+      expect(testShouldIgnore(["/build/"], "build", true)).toBe(true);
+      expect(testShouldIgnore(["/build/"], "src/build", true)).toBe(false);
+    });
+
+    test("pattern without / matches at any level", () => {
       expect(testShouldIgnore(["README.md"], "README.md")).toBe(true);
-      expect(testShouldIgnore(["README.md"], "docs/README.md")).toBe(false);
-    });
-
-    test("ignores .DS_Store in root only", () => {
-      expect(testShouldIgnore([".DS_Store"], ".DS_Store")).toBe(true);
-      expect(testShouldIgnore([".DS_Store"], "folder/.DS_Store")).toBe(false);
+      expect(testShouldIgnore(["README.md"], "docs/README.md")).toBe(true);
     });
   });
 
-  describe("path prefix matches", () => {
-    test("src pattern (no trailing slash) matches src prefix", () => {
-      // Pattern "src" matches via relativePath === "src" OR startsWith("src/")
-      expect(testShouldIgnore(["src"], "src")).toBe(true);
-      expect(testShouldIgnore(["src"], "src/index.ts")).toBe(true);
-      expect(testShouldIgnore(["src"], "src/components/Button.tsx")).toBe(
-        true
-      );
-      expect(testShouldIgnore(["src"], "source/file.ts")).toBe(false);
+  describe("Pattern with middle slash", () => {
+    test("dir/file anchors to root", () => {
+      expect(testShouldIgnore(["src/test.js"], "src/test.js")).toBe(true);
+      expect(testShouldIgnore(["src/test.js"], "lib/src/test.js")).toBe(false);
     });
 
-    test("examples pattern ignores examples and contents", () => {
-      expect(testShouldIgnore(["examples"], "examples")).toBe(true);
-      expect(testShouldIgnore(["examples"], "examples/hello.ts")).toBe(true);
-      expect(testShouldIgnore(["examples"], "examples/subdir/file.ts")).toBe(true);
-      expect(testShouldIgnore(["examples"], "example/hello.ts")).toBe(false);
-    });
-
-    test("tests/fixtures pattern ignores test fixtures", () => {
-      expect(
-        testShouldIgnore(["tests/fixtures"], "tests/fixtures")
-      ).toBe(true);
-      expect(
-        testShouldIgnore(["tests/fixtures"], "tests/fixtures/data.json")
-      ).toBe(true);
-      expect(
-        testShouldIgnore(["tests/fixtures"], "tests/fixtures/subdir/file.txt")
-      ).toBe(true);
-      expect(testShouldIgnore(["tests/fixtures"], "tests/utils.ts")).toBe(
-        false
-      );
-    });
-
-    test("patterns without trailing slash", () => {
-      // Pattern "src" matches exactly "src" or paths starting with "src/"
-      expect(testShouldIgnore(["src"], "src")).toBe(true);
-      expect(testShouldIgnore(["src"], "src/index.ts")).toBe(true);
-      expect(testShouldIgnore(["src"], "source")).toBe(false);
+    test("dir/subdir/ matches specific path", () => {
+      expect(testShouldIgnore(["src/tests/"], "src/tests", true)).toBe(true);
+      expect(testShouldIgnore(["src/tests/"], "lib/src/tests", true)).toBe(false);
     });
   });
 
-  describe("multiple patterns", () => {
+  describe("Character classes and special wildcards", () => {
+    test("? matches single character", () => {
+      expect(testShouldIgnore(["file?.txt"], "file1.txt")).toBe(true);
+      expect(testShouldIgnore(["file?.txt"], "fileA.txt")).toBe(true);
+      expect(testShouldIgnore(["file?.txt"], "file12.txt")).toBe(false);
+      expect(testShouldIgnore(["file?.txt"], "file.txt")).toBe(false);
+    });
+
+    test("[...] character class matches character range", () => {
+      expect(testShouldIgnore(["file[0-9].txt"], "file0.txt")).toBe(true);
+      expect(testShouldIgnore(["file[0-9].txt"], "file5.txt")).toBe(true);
+      expect(testShouldIgnore(["file[0-9].txt"], "fileA.txt")).toBe(false);
+    });
+  });
+
+  describe("Escape sequences", () => {
+    test("\\# matches literal hash", () => {
+      expect(testShouldIgnore(["\\#file"], "#file")).toBe(true);
+      expect(testShouldIgnore(["\\#file"], "file")).toBe(false);
+    });
+
+    test("\\* matches literal asterisk", () => {
+      expect(testShouldIgnore(["file\\*.txt"], "file*.txt")).toBe(true);
+      expect(testShouldIgnore(["file\\*.txt"], "file1.txt")).toBe(false);
+    });
+  });
+
+  describe("Multiple patterns", () => {
     test("applies all patterns in order", () => {
       const patterns = ["*.log", "dist/**", "**/node_modules/"];
-
       expect(testShouldIgnore(patterns, "app.log")).toBe(true);
       expect(testShouldIgnore(patterns, "dist/bundle.js")).toBe(true);
-      expect(testShouldIgnore(patterns, "node_modules/lib/index.js")).toBe(true); // Contains node_modules/
+      expect(testShouldIgnore(patterns, "src/node_modules/pkg")).toBe(true);
       expect(testShouldIgnore(patterns, "src/index.ts")).toBe(false);
     });
 
-    test("stops at first matching pattern", () => {
-      const patterns = ["*", "src/**"]; // * will match everything first
-      expect(testShouldIgnore(patterns, "anything.txt")).toBe(true);
-      expect(testShouldIgnore(patterns, "src/file.ts")).toBe(true);
+    test("later negation overrides earlier ignore", () => {
+      const patterns = ["*.log", "!important.log", "!debug.log"];
+      expect(testShouldIgnore(patterns, "app.log")).toBe(true);
+      expect(testShouldIgnore(patterns, "important.log")).toBe(false);
+      expect(testShouldIgnore(patterns, "debug.log")).toBe(false);
     });
   });
 
-  describe("edge cases", () => {
+  describe("Edge cases", () => {
     test("empty patterns array ignores nothing", () => {
       expect(testShouldIgnore([], "file.txt")).toBe(false);
       expect(testShouldIgnore([], "src/index.ts")).toBe(false);
@@ -202,30 +220,20 @@ describe("FileSyncer - shouldIgnore", () => {
     test("handles deeply nested paths", () => {
       expect(
         testShouldIgnore(
-          ["**/temp/"],
+          ["**/temp/**"],
           "very/deeply/nested/path/to/temp/file.txt"
-        )
-      ).toBe(true); // Contains temp/ with file inside
-      expect(
-        testShouldIgnore(
-          ["deep/**"],
-          "deep/very/long/path/structure/file.txt"
         )
       ).toBe(true);
     });
 
-    test("handles root-level files", () => {
-      expect(testShouldIgnore(["package.json"], "package.json")).toBe(true);
-      expect(testShouldIgnore(["*.json"], "tsconfig.json")).toBe(true);
-    });
-
-    test("case sensitive matching", () => {
-      expect(testShouldIgnore(["README.md"], "readme.md")).toBe(false);
-      expect(testShouldIgnore(["src/"], "SRC")).toBe(false);
+    test("case insensitive matching by default", () => {
+      // node-ignore is case-insensitive by default
+      expect(testShouldIgnore(["README.md"], "readme.md")).toBe(true);
+      expect(testShouldIgnore(["src/"], "SRC", true)).toBe(true);
     });
   });
 
-  describe("common ignore patterns", () => {
+  describe("Common real-world ignore patterns", () => {
     const commonPatterns = [
       ".git",
       ".vscode",
@@ -248,16 +256,14 @@ describe("FileSyncer - shouldIgnore", () => {
     });
 
     test("ignores Python artifacts", () => {
-      expect(testShouldIgnore(commonPatterns, "src/__pycache__/module.pyc")).toBe(true); // Contains __pycache__/
+      expect(testShouldIgnore(commonPatterns, "src/__pycache__/module.pyc")).toBe(true);
       expect(testShouldIgnore(commonPatterns, "test.pyc")).toBe(true);
-      expect(testShouldIgnore(commonPatterns, "tests/.pytest_cache/results.xml")).toBe(
-        true
-      ); // Contains .pytest_cache/
+      expect(testShouldIgnore(commonPatterns, "tests/.pytest_cache/results.xml")).toBe(true);
     });
 
     test("ignores build outputs", () => {
-      expect(testShouldIgnore(commonPatterns, "dist")).toBe(true);
-      expect(testShouldIgnore(commonPatterns, "build")).toBe(true);
+      expect(testShouldIgnore(commonPatterns, "dist/bundle.js")).toBe(true);
+      expect(testShouldIgnore(commonPatterns, "build/output.js")).toBe(true);
     });
 
     test("allows source files", () => {
@@ -266,131 +272,63 @@ describe("FileSyncer - shouldIgnore", () => {
       expect(testShouldIgnore(commonPatterns, "README.md")).toBe(false);
     });
   });
-});
 
-describe("FileSyncer - shouldInclude", () => {
-  // Helper to test shouldInclude by accessing private method
-  const testShouldInclude = (
-    patterns: string[],
-    filePath: string,
-    rootDir: string = "/test"
-  ): boolean => {
-    const syncer = new FileSyncer(rootDir);
-    // Access private includePatterns property
-    (syncer as any).includePatterns = patterns;
-    // Access private shouldInclude method
-    return (syncer as any).shouldInclude(`${rootDir}/${filePath}`);
-  };
-
-  describe("empty include patterns", () => {
-    test("includes everything when no patterns specified", () => {
+  describe("Include patterns", () => {
+    test("empty include patterns includes everything", () => {
       expect(testShouldInclude([], "file.txt")).toBe(true);
       expect(testShouldInclude([], "src/index.ts")).toBe(true);
-      expect(testShouldInclude([], "deeply/nested/file.js")).toBe(true);
     });
-  });
 
-  describe("specific file patterns", () => {
-    test("includes only matching files", () => {
+    test("include specific files", () => {
       expect(testShouldInclude(["src/index.ts"], "src/index.ts")).toBe(true);
       expect(testShouldInclude(["src/index.ts"], "src/other.ts")).toBe(false);
-      expect(testShouldInclude(["src/index.ts"], "lib/index.ts")).toBe(false);
     });
 
-    test("includes directory contents", () => {
-      // Patterns without trailing slashes match directory contents via startsWith(pattern + "/")
+    test("include with wildcards", () => {
+      expect(testShouldInclude(["*.ts"], "app.ts")).toBe(true);
+      expect(testShouldInclude(["*.ts"], "app.js")).toBe(false);
+    });
+
+    test("include directory contents", () => {
       expect(testShouldInclude(["src"], "src/index.ts")).toBe(true);
-      expect(testShouldInclude(["src"], "src/components/Button.tsx")).toBe(
-        true
-      );
-      expect(testShouldInclude(["src"], "src")).toBe(true); // Exact match
-      expect(testShouldInclude(["src"], "lib/util.ts")).toBe(false);
+      expect(testShouldInclude(["src"], "lib/util.js")).toBe(false);
+    });
+
+    test("include with ** patterns", () => {
+      expect(testShouldInclude(["src/**"], "src/index.ts")).toBe(true);
+      expect(testShouldInclude(["src/**"], "src/deep/nested/file.ts")).toBe(true);
+      expect(testShouldInclude(["src/**"], "lib/index.ts")).toBe(false);
     });
   });
 
-  describe("wildcard patterns", () => {
-    test("*.ts uses wildcard regex matching", () => {
-      // Wildcard becomes regex, matches anywhere
-      expect(testShouldInclude(["*.ts"], "index.ts")).toBe(true);
-      expect(testShouldInclude(["*.ts"], "util.ts")).toBe(true);
-      expect(testShouldInclude(["*.ts"], "file.js")).toBe(false);
-      expect(testShouldInclude(["*.ts"], "src/index.ts")).toBe(true); // Matches anywhere
+  describe("Ignore and include interaction", () => {
+    test("both ignore and include work together", () => {
+      const syncer = new FileSyncer(ROOT_DIR);
+      (syncer as any).ignorePatterns = ["*.log", "dist/**"];
+      (syncer as any).includePatterns = ["src"];
+
+      const shouldIgnore = (path: string) => {
+        const absolutePath = join(ROOT_DIR, path);
+        return (syncer as any).shouldIgnore(absolutePath, false);
+      };
+      const shouldInclude = (path: string) => {
+        const absolutePath = join(ROOT_DIR, path);
+        return (syncer as any).shouldInclude(absolutePath, false);
+      };
+
+      // File in src, not ignored, should be included
+      expect(shouldInclude("src/index.ts")).toBe(true);
+      expect(shouldIgnore("src/index.ts")).toBe(false);
+
+      // Log file should be ignored even if in src
+      expect(shouldIgnore("src/app.log")).toBe(true);
+      expect(shouldInclude("src/app.log")).toBe(true);
+
+      // File in dist should be ignored
+      expect(shouldIgnore("dist/bundle.js")).toBe(true);
+
+      // File outside src
+      expect(shouldInclude("lib/util.ts")).toBe(false);
     });
-
-    test("src/*.ts includes TypeScript in src", () => {
-      expect(testShouldInclude(["src/*.ts"], "src/index.ts")).toBe(true);
-      expect(testShouldInclude(["src/*.ts"], "src/util.ts")).toBe(true);
-      expect(testShouldInclude(["src/*.ts"], "src/index.js")).toBe(false);
-      expect(testShouldInclude(["src/*.ts"], "lib/index.ts")).toBe(false);
-    });
-  });
-
-  describe("multiple patterns", () => {
-    test("includes files matching any pattern", () => {
-      // Patterns without trailing slashes match directory contents via startsWith(pattern + "/")
-      const patterns = ["src", "lib", "*.md"];
-
-      expect(testShouldInclude(patterns, "src/index.ts")).toBe(true);
-      expect(testShouldInclude(patterns, "lib/util.js")).toBe(true);
-      expect(testShouldInclude(patterns, "README.md")).toBe(true);
-      expect(testShouldInclude(patterns, "docs/README.md")).toBe(true); // *.md matches anywhere
-      expect(testShouldInclude(patterns, "tests/test.ts")).toBe(false);
-    });
-
-    test("handles overlapping patterns", () => {
-      const patterns = ["src/", "src/*.ts"];
-
-      expect(testShouldInclude(patterns, "src/index.ts")).toBe(true);
-      expect(testShouldInclude(patterns, "src/components/Button.tsx")).toBe(
-        true
-      );
-    });
-  });
-
-  describe("edge cases", () => {
-    test("handles paths with special characters", () => {
-      expect(testShouldInclude(["*.test.ts"], "app.test.ts")).toBe(true);
-      expect(testShouldInclude(["file-name.txt"], "file-name.txt")).toBe(true);
-    });
-
-    test("handles root-level patterns", () => {
-      expect(testShouldInclude(["package.json"], "package.json")).toBe(true);
-      expect(testShouldInclude(["package.json"], "src/package.json")).toBe(
-        false
-      );
-    });
-
-    test("case sensitive matching", () => {
-      expect(testShouldInclude(["README.md"], "readme.md")).toBe(false);
-      expect(testShouldInclude(["src/"], "SRC")).toBe(false);
-    });
-  });
-});
-
-describe("FileSyncer - ignore and include interaction", () => {
-  test("both ignore and include work together", () => {
-    const syncer = new FileSyncer("/test");
-    (syncer as any).ignorePatterns = ["*.log", "dist/**"];
-    // Use pattern without trailing slash to match directory contents
-    (syncer as any).includePatterns = ["src"];
-
-    const shouldIgnore = (path: string) =>
-      (syncer as any).shouldIgnore(`/test/${path}`);
-    const shouldInclude = (path: string) =>
-      (syncer as any).shouldInclude(`/test/${path}`);
-
-    // File in src, not ignored, should be included
-    expect(shouldInclude("src/index.ts")).toBe(true);
-    expect(shouldIgnore("src/index.ts")).toBe(false);
-
-    // Log file in src, should be ignored despite being in src (*.log has wildcard)
-    expect(shouldIgnore("src/app.log")).toBe(true);
-    expect(shouldInclude("src/app.log")).toBe(true);
-
-    // File in dist, should be ignored
-    expect(shouldIgnore("dist/bundle.js")).toBe(true);
-
-    // File outside src
-    expect(shouldInclude("lib/util.ts")).toBe(false);
   });
 });
