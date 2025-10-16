@@ -58,15 +58,7 @@ export class Pod {
       ignorePatterns
     );
     if (!prepared) {
-      return new PodInstance(
-        {
-          containerId: "",
-          url: "",
-          ok: false,
-          errorMsg: "Failed to prepare runtime",
-        },
-        this
-      );
+      throw new Error("Failed to prepare runtime");
     }
 
     if (!this.stub.stubId) {
@@ -77,25 +69,26 @@ export class Pod {
       stubId: this.stub.stubId,
     });
 
-    let url = "";
-    if (createResp.ok) {
-      console.log(
-        `Container created successfully ===> ${createResp.containerId}`
-      );
-
-      if (this.stub.config.keepWarmSeconds < 0) {
-        console.log(
-          "This container has no timeout, it will run until it completes."
-        );
-      } else {
-        console.log(
-          `This container will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
-        );
-      }
-
-      const urlRes = await this.stub.printInvocationSnippet();
-      url = urlRes?.url || "";
+    if (!createResp.ok) {
+      throw new Error(createResp.errorMsg || "Failed to create pod");
     }
+
+    console.log(
+      `Container created successfully ===> ${createResp.containerId}`
+    );
+
+    if (this.stub.config.keepWarmSeconds < 0) {
+      console.log(
+        "This container has no timeout, it will run until it completes."
+      );
+    } else {
+      console.log(
+        `This container will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
+      );
+    }
+
+    const urlRes = await this.stub.printInvocationSnippet();
+    const url = urlRes?.url || "";
 
     return new PodInstance(
       {
