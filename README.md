@@ -27,13 +27,13 @@ The official TypeScript/JavaScript SDK for [Beam Cloud](https://beam.cloud) - a 
 ## Installation
 
 ```bash
-npm install @beamcloud/beam-js
+npm install @beamcloud/beam-js@rc
 ```
 
 or with yarn:
 
 ```bash
-yarn add @beamcloud/beam-js
+yarn add @beamcloud/beam-js@rc
 ```
 
 ## Quickstart
