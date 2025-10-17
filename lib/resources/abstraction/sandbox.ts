@@ -548,25 +548,6 @@ export class SandboxProcessStream {
     }
     return data;
   }
-
-  /**
-   * Fetch and return all available output at this moment.
-   * Deprecated, use read() instead.
-   * TODO: Remove this method
-   */
-  public async readAll(): Promise<string> {
-    let data = this._buffer;
-    this._buffer = "";
-    while (true) {
-      const chunk = await this._fetch_next_chunk();
-      if (chunk) {
-        data += chunk;
-      } else {
-        break;
-      }
-    }
-    return data;
-  }
 }
 
 /**
