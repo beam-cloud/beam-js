@@ -105,7 +105,7 @@ export class Sandbox extends Pod {
    *
    * Returns: SandboxInstance - A new sandbox instance ready for use.
    *
-   * Throws: SandboxConnectionError if the creation fails.
+   * Throws: SandboxConnectionError if the sandbox creation fails.
    */
   public static async createFromSnapshot(
     snapshotId: string
@@ -154,6 +154,8 @@ export class Sandbox extends Pod {
    * specified configuration.
    *
    * Returns: SandboxInstance - A new sandbox instance ready for use.
+   *
+   * Throws: SandboxConnectionError if the sandbox creation fails.
    */
   public async create(entrypoint?: string[]): Promise<SandboxInstance> {
     this.stub.config.entrypoint = ["tail", "-f", "/dev/null"];
@@ -170,16 +172,7 @@ export class Sandbox extends Pod {
       ignorePatterns
     );
     if (!prepared) {
-      return new SandboxInstance(
-        {
-          containerId: "",
-          url: "",
-          ok: false,
-          errorMsg: "Failed to prepare runtime",
-          stubId: "",
-        },
-        this
-      );
+      throw new SandboxConnectionError("Failed to prepare runtime");
     }
 
     // eslint-disable-next-line no-console
@@ -197,15 +190,8 @@ export class Sandbox extends Pod {
     };
 
     if (!body.ok) {
-      return new SandboxInstance(
-        {
-          stubId: this.stub.stubId!,
-          containerId: "",
-          url: "",
-          ok: false,
-          errorMsg: body.errorMsg || "",
-        },
-        this
+      throw new SandboxConnectionError(
+        body.errorMsg || "Failed to create sandbox"
       );
     }
 

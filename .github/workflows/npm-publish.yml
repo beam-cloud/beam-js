@@ -1,0 +1,106 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.0-rc.21)'
+        required: true
+        default: '1.0.0-test'
+      prerelease:
+        description: 'Is this a prerelease?'
+        type: boolean
+        default: true
+      dry_run:
+        description: 'Dry run (do not actually publish)'
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # Required for OIDC
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm to latest
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Set version from release tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            # Extract version from tag (removes 'v' prefix if present)
+            VERSION=${GITHUB_REF#refs/tags/v}
+            VERSION=${VERSION#refs/tags/}
+          fi
+          echo "Setting version to $VERSION"
+          npm version $VERSION --no-git-tag-version
+
+      - name: Publish to npm
+        run: |
+          # Determine if dry run
+          DRY_RUN=""
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" == "true" ]; then
+            DRY_RUN="--dry-run"
+            echo "Running in dry-run mode"
+          fi
+
+          # Determine if prerelease
+          IS_PRERELEASE="false"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            IS_PRERELEASE="${{ inputs.prerelease }}"
+          else
+            IS_PRERELEASE="${{ github.event.release.prerelease }}"
+          fi
+
+          # Publish
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            npm publish --tag rc $DRY_RUN
+          else
+            npm publish $DRY_RUN
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit version change
+        run: |
+          # Skip commit for dry runs
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "Skipping commit for dry run"
+            exit 0
+          fi
+
+          git add package.json package-lock.json
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            git commit -m "chore: bump version to ${{ inputs.version }}" || echo "No changes to commit"
+          else
+            git commit -m "chore: bump version to ${GITHUB_REF#refs/tags/}" || echo "No changes to commit"
+          fi
+          git push origin HEAD:main || echo "No changes to push"
