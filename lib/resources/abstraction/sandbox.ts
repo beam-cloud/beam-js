@@ -377,8 +377,8 @@ export class SandboxInstance extends PodInstance {
     if (blocking) {
       await process.wait();
       const [stdoutStr, stderrStr] = await Promise.all([
-        process.stdout.readAll(),
-        process.stderr.readAll(),
+        process.stdout.read(),
+        process.stderr.read(),
       ]);
       return {
         pid: process.pid,
@@ -536,25 +536,6 @@ export class SandboxProcessStream {
    * Fetch and return all available output at this moment.
    */
   public async read(): Promise<string> {
-    let data = this._buffer;
-    this._buffer = "";
-    while (true) {
-      const chunk = await this._fetch_next_chunk();
-      if (chunk) {
-        data += chunk;
-      } else {
-        break;
-      }
-    }
-    return data;
-  }
-
-  /**
-   * Fetch and return all available output at this moment.
-   * Deprecated, use read() instead.
-   * TODO: Remove this method
-   */
-  public async readAll(): Promise<string> {
     let data = this._buffer;
     this._buffer = "";
     while (true) {
