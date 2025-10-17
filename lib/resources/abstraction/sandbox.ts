@@ -107,7 +107,7 @@ export class Sandbox extends Pod {
    *
    * Throws: SandboxConnectionError if the sandbox creation fails.
    */
-  public async createFromSnapshot(
+  public static async createFromSnapshot(
     snapshotId: string
   ): Promise<SandboxInstance> {
     // eslint-disable-next-line no-console
@@ -134,18 +134,7 @@ export class Sandbox extends Pod {
     // eslint-disable-next-line no-console
     console.log(`Sandbox created successfully ===> ${body.containerId}`);
 
-    if ((this.stub.config.keepWarmSeconds as number) < 0) {
-      // eslint-disable-next-line no-console
-      console.log(
-        "This sandbox has no timeout, it will run until it is shut down manually."
-      );
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(
-        `This sandbox will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
-      );
-    }
-
+    const sandbox = new Sandbox({ name: body.containerId });
     return new SandboxInstance(
       {
         stubId: body.stubId || "",
@@ -154,7 +143,7 @@ export class Sandbox extends Pod {
         ok: body.ok,
         errorMsg: body.errorMsg || "",
       },
-      this
+      sandbox
     );
   }
 
