@@ -14,6 +14,7 @@ import { join, resolve, relative } from "path";
 import { formatBytes, uploadToPresignedUrl } from "./util";
 import archiver from "archiver";
 import axios from "axios";
+import ignore from "ignore";
 import beamClient from "./index";
 
 // Global workspace object id to signal to any other threads that the workspace has already been synced
@@ -40,15 +41,11 @@ pyproject.toml
 .idea
 .python-version
 .vscode
-.venv
-venv
-__pycache__
 .DS_Store
 .config
 drive/MyDrive
 .coverage
-.pytest_cache
-.ipynb
+*.ipynb
 .ruff_cache
 .dockerignore
 .ipynb_checkpoints
@@ -112,6 +109,8 @@ export class FileSyncer {
   private isWorkspaceDir: boolean;
   private ignorePatterns: string[] = [];
   private includePatterns: string[] = [];
+  private ignoreSpec: ReturnType<typeof ignore> | null = null;
+  private includeSpec: ReturnType<typeof ignore> | null = null;
 
   constructor(rootDir: string = ".") {
     this.rootDir = resolve(rootDir);
@@ -147,40 +146,36 @@ export class FileSyncer {
     return patterns;
   }
 
-  private shouldIgnore(filePath: string): boolean {
-    const relativePath = relative(this.rootDir, filePath);
-
-    // Simple pattern matching - could be enhanced with proper glob matching
-    return this.ignorePatterns.some((pattern) => {
-      if (pattern === "*") return true;
-      if (pattern.startsWith("**/")) {
-        return relativePath.includes(pattern.slice(3));
-      }
-      if (pattern.endsWith("/**")) {
-        return relativePath.startsWith(pattern.slice(0, -3));
-      }
-      if (pattern.includes("*")) {
-        const regex = new RegExp(pattern.replace(/\*/g, ".*"));
-        return regex.test(relativePath);
-      }
-      return relativePath === pattern || relativePath.startsWith(pattern + "/");
-    });
+  private getIgnoreSpec(): ReturnType<typeof ignore> {
+    if (!this.ignoreSpec) {
+      this.ignoreSpec = ignore().add(this.ignorePatterns);
+    }
+    return this.ignoreSpec;
   }
 
-  private shouldInclude(filePath: string): boolean {
+  private getIncludeSpec(): ReturnType<typeof ignore> {
+    if (!this.includeSpec) {
+      this.includeSpec = ignore().add(this.includePatterns);
+    }
+    return this.includeSpec;
+  }
+
+  private shouldIgnore(filePath: string, isDirectory: boolean = false): boolean {
+    const relativePath = relative(this.rootDir, filePath);
+    // node-ignore requires trailing slash for directories
+    const pathToTest = isDirectory ? relativePath + "/" : relativePath;
+    return this.getIgnoreSpec().ignores(pathToTest);
+  }
+
+  private shouldInclude(filePath: string, isDirectory: boolean = false): boolean {
     if (this.includePatterns.length === 0) {
       return true;
     }
 
     const relativePath = relative(this.rootDir, filePath);
-
-    return this.includePatterns.some((pattern) => {
-      if (pattern.includes("*")) {
-        const regex = new RegExp(pattern.replace(/\*/g, ".*"));
-        return regex.test(relativePath);
-      }
-      return relativePath === pattern || relativePath.startsWith(pattern + "/");
-    });
+    // node-ignore requires trailing slash for directories
+    const pathToTest = isDirectory ? relativePath + "/" : relativePath;
+    return this.getIncludeSpec().ignores(pathToTest);
   }
 
   private async *collectFiles(): AsyncGenerator<string> {
@@ -199,12 +194,14 @@ export class FileSyncer {
           const fullPath = join(dir, entry.name);
 
           if (entry.isDirectory()) {
-            if (!this.shouldIgnore(fullPath)) {
+            // Pass isDirectory=true for directory checking
+            if (!this.shouldIgnore(fullPath, true)) {
               const subFiles = await walk(fullPath);
               files.push(...subFiles);
             }
           } else if (entry.isFile()) {
-            if (!this.shouldIgnore(fullPath) && this.shouldInclude(fullPath)) {
+            // Files don't need the directory flag
+            if (!this.shouldIgnore(fullPath, false) && this.shouldInclude(fullPath, false)) {
               files.push(fullPath);
             }
           }
@@ -407,6 +404,10 @@ export class FileSyncer {
     } else {
       this.includePatterns = includePatterns;
     }
+
+    // Reset cached specs when patterns change
+    this.ignoreSpec = null;
+    this.includeSpec = null;
 
     const { filePath: tempZipPath, size, hash } = await this.createZipFile();
 
