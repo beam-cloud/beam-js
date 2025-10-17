@@ -377,8 +377,8 @@ export class SandboxInstance extends PodInstance {
     if (blocking) {
       await process.wait();
       const [stdoutStr, stderrStr] = await Promise.all([
-        process.stdout.readAll(),
-        process.stderr.readAll(),
+        process.stdout.read(),
+        process.stderr.read(),
       ]);
       return {
         pid: process.pid,
