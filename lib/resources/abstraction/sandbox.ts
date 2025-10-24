@@ -134,6 +134,22 @@ export class Sandbox extends Pod {
     // eslint-disable-next-line no-console
     console.log(`Sandbox created successfully ===> ${body.containerId}`);
 
+    // Connect to the sandbox to ensure it's ready
+    const connectResp = await beamClient.request({
+      method: "POST",
+      url: `api/v1/gateway/pods/${body.containerId}/connect`,
+      data: {},
+    });
+    const connectData = connectResp.data as {
+      ok: boolean;
+      errorMsg?: string;
+    };
+    if (!connectData.ok) {
+      throw new SandboxConnectionError(
+        connectData.errorMsg || "Failed to connect to sandbox"
+      );
+    }
+
     const sandbox = new Sandbox({ name: body.containerId });
     return new SandboxInstance(
       {
@@ -197,6 +213,22 @@ export class Sandbox extends Pod {
 
     // eslint-disable-next-line no-console
     console.log(`Sandbox created successfully ===> ${body.containerId}`);
+
+    // Connect to the sandbox to ensure it's ready
+    const connectResp = await beamClient.request({
+      method: "POST",
+      url: `api/v1/gateway/pods/${body.containerId}/connect`,
+      data: {},
+    });
+    const connectData = connectResp.data as {
+      ok: boolean;
+      errorMsg?: string;
+    };
+    if (!connectData.ok) {
+      throw new SandboxConnectionError(
+        connectData.errorMsg || "Failed to connect to sandbox"
+      );
+    }
 
     if ((this.stub.config.keepWarmSeconds as number) < 0) {
       // eslint-disable-next-line no-console
