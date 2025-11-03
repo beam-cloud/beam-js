@@ -18,7 +18,10 @@
       "types": "./dist/*.d.ts"
     }
   },
-  "repository": "git@github.com:beam-cloud/beta9-js.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beam-cloud/beam-js.git"
+  },
   "author": "John <john@slai.io>",
   "license": "MIT",
   "scripts": {
