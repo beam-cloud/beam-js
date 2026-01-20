@@ -290,7 +290,10 @@ export class Image {
   }
 
   /**
-   * Use micromamba to manage python packages.
+   * Switch the image to use micromamba for Python package installs.
+   *
+   * This rewrites the configured `pythonVersion` to a micromamba variant.
+   *
    * @returns The image instance.
    */
   micromamba(): Image {
@@ -305,14 +308,15 @@ export class Image {
   }
 
   /**
-   * Add micromamba packages that will be installed when building the image.
-   * These will be executed at the end of the image build and in the
-   * order they are added. If a single string is provided, it will be
-   * interpreted as a path to a requirements.txt file.
-
+   * Add micromamba packages to install during the image build.
+   *
+   * Packages are appended to the existing list and installed in the order added.
+   * If a single string is provided, it is treated as a path to a requirements.txt file.
+   *
    * @param packages The micromamba packages to add or the path to a requirements.txt file.
-   * @param channels The micromamba channels to use.
-   * @returns The image instance
+   * @param channels Optional micromamba channels. Currently unused.
+   * @returns The image instance.
+   * @throws Error if micromamba mode is not enabled (call `micromamba()` first).
    */
   addMicromambaPackages(
     packages: string[] | string,
@@ -341,13 +345,14 @@ export class Image {
   }
 
   /**
-   * Add Python packages that will be installed when building the image.
-   * These will be executed at the end of the image build and in the
-   * order they are added. If a single string is provided, it will be
-   * interpreted as a path to a requirements.txt file.
+   * Add Python packages to install during the image build.
+   *
+   * Packages are appended to the existing list and installed in the order added.
+   * If a single string is provided, it is treated as a path to a requirements.txt file.
    *
    * @param packages The Python packages to add or the path to a requirements.txt file.
    * @returns The image instance.
+   * @throws Error if a requirements.txt path is provided but cannot be read.
    */
   addPythonPackages(packages: string[] | string): Image {
     let packageList: string[];
@@ -393,11 +398,11 @@ export class Image {
    * Add environment variables to the image.
    *
    * These will be available when building the image and when the container is running.
+   * This replaces any previously configured environment variables.
    *
    * @param envVars Environment variables. This can be a string, a list of strings, or a
    * dictionary of strings. The string must be in the format of "KEY=VALUE". If a list of
-   * strings is provided, each element should be in the same format. Default is None.
-   * @param clear Clear existing environment variables before adding the new ones.
+   * strings is provided, each element should be in the same format.
    * @returns The image instance.
    */
   withEnvs(envVars: string[] | Record<string, string> | string): Image {

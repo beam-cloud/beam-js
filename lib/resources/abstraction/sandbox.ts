@@ -33,20 +33,24 @@ function shellQuote(arg: string): string {
  * You can use this to create isolated environments where you can execute code,
  * manage files, and run processes.
  *
- * Parameters:
- * - cpu (number | string): The number of CPU cores allocated to the container. Default is 1.0.
+ * Constructor parameters:
+ * - config (CreateStubConfig): Base stub configuration for the sandbox.
+ * - syncLocalDir (boolean): Whether to sync the local working directory on creation.
+ *   Default is false.
+ *
+ * Config fields (selected):
+ * - name (string): The sandbox app name (required).
+ * - cpu (number | string): The number of CPU cores allocated to the container. Default is 1.
  * - memory (number | string): The amount of memory allocated to the container. It should be specified in
  *   MiB, or as a string with units (e.g. "1Gi"). Default is 128 MiB.
- * - gpu (GpuType | GpuType[]): The type or name of the GPU device to be used for GPU-accelerated tasks. If not
- *   applicable or no GPU required, leave it empty. Default is GpuType.NoGPU.
- * - gpu_count (number): The number of GPUs to allocate. Default is 0.
- * - image (Image): The container image used for the task execution.
- * - keep_warm_seconds (number): The number of seconds to keep the sandbox around. Default is 10 minutes (600s). Use -1 for sandboxes that never timeout.
- * - authorized (boolean): Whether the sandbox should be authorized for external access. Default is false.
- * - name (string | undefined): The name of the Sandbox app. Default is none, which means you must provide it during deployment.
- * - volumes (any[]): The volumes and/or cloud buckets to mount into the Sandbox container. Default is an empty list.
- * - secrets (string[]): The secrets to pass to the Sandbox container.
- * - sync_local_dir (boolean): Whether to sync the local directory to the sandbox filesystem on creation. Default is false.
+ * - gpu (GpuType | string | Array<GpuType | string>): The GPU type(s) to use. Default is GpuType.NoGPU.
+ * - gpuCount (number): The number of GPUs to allocate. Default is 0 (auto-promotes to 1 if gpu is set).
+ * - image (Image): The container image used for the sandbox.
+ * - keepWarmSeconds (number): The number of seconds to keep the sandbox around. Default is 60s. Use -1
+ *   for sandboxes that never timeout.
+ * - volumes (Volume[]): The volumes and/or cloud buckets to mount into the sandbox container.
+ * - secrets (SecretVar[]): Secrets to pass to the sandbox, e.g. [{ name: "API_KEY" }].
+ * - authorized (boolean): Ignored for sandboxes (forced to false).
  */
 export class Sandbox extends Pod {
   public syncLocalDir: boolean = false;
@@ -263,15 +267,17 @@ export class Sandbox extends Pod {
  * management.
  *
  * Attributes:
- * - container_id (string): The unique ID of the created sandbox container.
+ * - containerId (string): The unique ID of the created sandbox container.
+ * - stubId (string): The stub ID used for sandbox operations.
  * - fs (SandboxFileSystem): File system interface for the sandbox.
  * - processes (Record<number, SandboxProcess>): Map of running processes by PID.
+ * - terminated (boolean): Whether the sandbox has been terminated.
  *
  * Process Management Methods:
- * - run_code(code, blocking?, cwd?, env?): Execute Python code in the sandbox.
+ * - runCode(code, blocking?, cwd?, env?): Execute Python code in the sandbox.
  * - exec(...args): Run arbitrary commands in the sandbox.
- * - list_processes(): Get all running processes.
- * - get_process(pid): Get a specific process by PID.
+ * - listProcesses(): Get all running processes.
+ * - getProcess(pid): Get a specific process by PID.
  */
 export class SandboxInstance extends PodInstance {
   public stubId: string;
@@ -478,7 +484,7 @@ export class SandboxInstance extends PodInstance {
  *
  * Attributes:
  * - pid (number): The process ID of the executed command.
- * - exit_code (number): The exit code of the process (0 typically indicates success).
+ * - exitCode (number): The exit code of the process (0 typically indicates success).
  * - stdout (string): The full standard output captured for the process.
  * - stderr (string): The full standard error output captured for the process.
  * - result (string): Combined stdout and stderr output as a string.
@@ -620,7 +626,7 @@ export class SandboxProcess {
       throw new SandboxProcessError(data.errorMsg || "Failed to kill process");
   }
 
-  /** Get the status of the process: [exit_code, status]. */
+  /** Get the status of the process: [exitCode, status]. */
   public async status(): Promise<[number, string]> {
     const resp = await beamClient.request({
       method: "GET",

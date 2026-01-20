@@ -113,7 +113,7 @@ export class Pod {
    *   name: "my-pod",
    *   cpu: 1.0,
    *   memory: 128,
-   *   image: new Image(),
+   *   image: new Image({}),
    *   keepWarmSeconds: 1000
    * });
    * const { deploymentDetails, success } = await pod.deploy("my-pod");

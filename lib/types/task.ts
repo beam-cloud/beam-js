@@ -7,14 +7,14 @@ export interface TaskPolicyConfig {
 }
 
 /**
- * Task policy for a function. This helps manages lifecycle of an individual task.
+ * Task policy for a function. This helps manage the lifecycle of an individual task.
  *
  * Parameters:
  *   maxRetries: The maximum number of times a task will be retried if the container crashes. Default is 0.
- *   timeout: The maximum number of seconds a task can run before it times out.
- *            Default depends on the abstraction that you are using.
- *            Set it to -1 to disable the timeout (this does not disable timeout for endpoints).
- *   ttl: The expiration time for a task in seconds. Must be greater than 0 and less than 24 hours (86400 seconds).
+ *   timeout: The maximum number of seconds a task can run before it times out. Default is 0.
+ *            Use a positive value to override the platform default.
+ *   ttl: The expiration time for a task in seconds. Default is 0. When set, must be greater than 0 and
+ *        less than 24 hours (86400 seconds).
  */
 export class TaskPolicy {
   public maxRetries: number;
