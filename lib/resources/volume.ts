@@ -14,14 +14,14 @@ export class Volume {
      * Parameters:
      *   name: The name of the volume, a descriptive identifier for the data volume.
      *         Note that when using an external provider, the name must be the same as the bucket name.
-     *   mountPath: The path where the volume is mounted within the container environment.
+     *   mountPath: The absolute path where the volume is mounted within the container (e.g. "/mnt/weights").
      *
      * Example:
      *   ```typescript
      *   import { Volume } from "@beamcloud/beam-js";
      *
      *   // Shared Volume
-     *   const sharedVolume = new Volume("model_weights", "./my-weights");
+     *   const sharedVolume = new Volume("model_weights", "/mnt/weights");
      *
      *   const stub = new StubBuilder({
      *     volumes: [sharedVolume]
