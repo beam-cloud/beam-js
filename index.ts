@@ -13,6 +13,7 @@ export {
 } from "./lib/resources/abstraction/sandbox";
 export { Pod, PodInstance } from "./lib/resources/abstraction/pod";
 export { Image } from "./lib/resources/abstraction/image";
+export { Volume } from "./lib/resources/volume";
 export type {
   ImageConfig,
   ImageBuildResult,

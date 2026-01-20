@@ -18,7 +18,7 @@ export class Volume {
      *
      * Example:
      *   ```typescript
-     *   import { Volume } from "beam-js";
+     *   import { Volume } from "@beamcloud/beam-js";
      *
      *   // Shared Volume
      *   const sharedVolume = new Volume("model_weights", "./my-weights");
