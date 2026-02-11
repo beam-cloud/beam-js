@@ -632,6 +632,7 @@ export class SandboxProcess {
       method: "GET",
       url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/status`,
       params: { pid: this.pid },
+      timeout: 300000,
     });
     const data = resp.data as {
       ok: boolean;

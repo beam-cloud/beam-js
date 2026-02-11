@@ -12,6 +12,7 @@ export const beamOpts = {
   token: "",
   workspaceId: "",
   gatewayUrl: "https://app.beam.cloud",
+  timeout: 30000,
 };
 
 class BeamClient {
@@ -35,7 +36,7 @@ class BeamClient {
           Authorization: `Bearer ${beamOpts.token}`,
           "Content-Type": "application/json",
         },
-        timeout: 30000,
+        timeout: beamOpts.timeout,
       });
     }
 
