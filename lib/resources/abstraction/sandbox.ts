@@ -526,8 +526,9 @@ export class SandboxProcessStream {
       async next() {
         while (true) {
           if (self._buffer.includes("\n")) {
-            const [line, rest] = self._buffer.split("\n", 1);
-            self._buffer = rest;
+            const idx = self._buffer.indexOf("\n");
+            const line = self._buffer.slice(0, idx);
+            self._buffer = self._buffer.slice(idx + 1);
             return { value: line + "\n", done: false };
           }
 
