@@ -296,7 +296,7 @@ export class FileSyncer {
         if (stats.isFile()) {
           archive.file(filePath, {
             name: relativePath,
-            date: stats.mtime, // Preserve modification time
+            date: new Date(0), // Normalize mtime for deterministic hashing
           });
         }
       } catch (error) {
