@@ -66,7 +66,7 @@ async function main() {
 
   const instance = await sandbox.create();
 
-  const process4 = await instance.exec("sh", "-c", "cd /app && node server.js");
+  const process4 = await instance.exec(["sh", "-c", "cd /app && node server.js"]);
 
   const url = await instance.exposePort(3000);
   console.log(`Server is running at ${url}`);
