@@ -337,9 +337,15 @@ describe("FileSyncer - GitIgnore-Compliant Pattern Matching", () => {
 describe("FileSyncer - ZIP timestamp normalization", () => {
   const getDosTimestampForTimezone = (dateInput: string, timezone: string): number => {
     const script = `
-      const zipUtil = require("compress-commons/lib/archivers/zip/util");
+      function dateToDos(d) {
+        var year = d.getFullYear();
+        if (year < 1980) return 2162688;
+        if (year >= 2044) return 2141175677;
+        return ((year - 1980) << 25) | ((d.getMonth() + 1) << 21) | (d.getDate() << 16) |
+          (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2);
+      }
       const date = new Date(process.argv[1]);
-      process.stdout.write(String(zipUtil.dateToDos(date, true)));
+      process.stdout.write(String(dateToDos(date)));
     `;
 
     const result = spawnSync(process.execPath, ["-e", script, dateInput], {
