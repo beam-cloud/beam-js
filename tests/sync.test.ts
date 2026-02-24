@@ -1,4 +1,5 @@
 import { FileSyncer } from "../lib/sync";
+import { spawnSync } from "child_process";
 import { join } from "path";
 
 describe("FileSyncer - GitIgnore-Compliant Pattern Matching", () => {
@@ -330,5 +331,50 @@ describe("FileSyncer - GitIgnore-Compliant Pattern Matching", () => {
       // File outside src
       expect(shouldInclude("lib/util.ts")).toBe(false);
     });
+  });
+});
+
+describe("FileSyncer - ZIP timestamp normalization", () => {
+  const getDosTimestampForTimezone = (dateInput: string, timezone: string): number => {
+    const script = `
+      function dateToDos(d) {
+        var year = d.getFullYear();
+        if (year < 1980) return 2162688;
+        if (year >= 2044) return 2141175677;
+        return ((year - 1980) << 25) | ((d.getMonth() + 1) << 21) | (d.getDate() << 16) |
+          (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2);
+      }
+      const date = new Date(process.argv[1]);
+      process.stdout.write(String(dateToDos(date)));
+    `;
+
+    const result = spawnSync(process.execPath, ["-e", script, dateInput], {
+      env: { ...process.env, TZ: timezone },
+      encoding: "utf8",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+
+    return Number.parseInt(result.stdout.trim(), 10);
+  };
+
+  test("uses a timezone-stable local-midnight date string", () => {
+    const dosTimestamps = ["UTC", "America/Los_Angeles", "Asia/Tokyo"].map((timezone) =>
+      getDosTimestampForTimezone("1980-01-01T00:00:00", timezone)
+    );
+
+    expect(new Set(dosTimestamps).size).toBe(1);
+  });
+
+  test("would drift if switched to an explicit UTC timestamp string", () => {
+    const utcTimestamp = getDosTimestampForTimezone("1980-01-01T00:00:00Z", "UTC");
+    const tokyoTimestamp = getDosTimestampForTimezone(
+      "1980-01-01T00:00:00Z",
+      "Asia/Tokyo"
+    );
+
+    expect(tokyoTimestamp).not.toBe(utcTimestamp);
   });
 });
