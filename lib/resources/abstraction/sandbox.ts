@@ -12,6 +12,7 @@ import type {
   PodSandboxCreateDirectoryResponse,
   PodSandboxListUrlsResponse,
   PodInstanceData,
+  ExecOptions,
 } from "../../types/pod";
 import beamClient from "../..";
 
@@ -430,8 +431,12 @@ export class SandboxInstance extends PodInstance {
   }
 
   /** Run an arbitrary command in the sandbox. */
-  public async exec(...args: string[]): Promise<SandboxProcess> {
-    return this._exec(args);
+  public async exec(
+    command: string | string[],
+    opts?: ExecOptions
+  ): Promise<SandboxProcess> {
+    const commandList = Array.isArray(command) ? command : [command];
+    return this._exec(commandList, opts);
   }
 
   private async _exec(

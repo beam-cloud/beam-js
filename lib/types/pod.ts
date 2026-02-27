@@ -299,4 +299,9 @@ export interface PodSandboxCreateImageFromFilesystemResponse {
   imageId: string;
 }
 
+export interface ExecOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
 // Store requests here?
