@@ -571,7 +571,30 @@ export class SandboxProcessStream {
     const output =
       typeof this.fetch_fn === "function" ? await this.fetch_fn() : "";
     if (output === this._last_output) return "";
-    const newOutput = output.slice(this._last_output.length);
+
+    let newOutput: string;
+    if (output.startsWith(this._last_output)) {
+      // Happy path: server buffer is append-only
+      newOutput = output.slice(this._last_output.length);
+    } else {
+      // Buffer rotation detected: find longest suffix of _last_output
+      // that matches a prefix of output (overlap detection).
+      // NOTE: This is a best-effort heuristic. If new data coincidentally
+      // matches a suffix of _last_output (e.g., repeated lines), the
+      // overlap may be falsely detected and that data silently skipped.
+      // Without server-side sequence numbers this is unavoidable; we
+      // prefer this over the alternative (returning the entire buffer
+      // and producing large duplicates on every rotation).
+      newOutput = output;
+      for (let i = 1; i < this._last_output.length; i++) {
+        const suffix = this._last_output.slice(i);
+        if (output.startsWith(suffix)) {
+          newOutput = output.slice(suffix.length);
+          break;
+        }
+      }
+    }
+
     this._last_output = output;
     return newOutput;
   }
