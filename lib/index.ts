@@ -70,6 +70,10 @@ export * from "./types/deployment";
 export * from "./resources/task";
 export * from "./types/task";
 
+// Export Run classes and types
+export * from "./resources/run";
+export * from "./types/run";
+
 // Export Pod classes and types
 export { Pod, PodInstance } from "./resources/abstraction/pod";
 export * from "./types/pod";
