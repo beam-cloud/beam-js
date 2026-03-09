@@ -107,7 +107,32 @@ describe("Sandbox network parity", () => {
 
     await expect(
       instance.updateNetworkPermissions(true, ["8.8.8.8/32"])
-    ).rejects.toThrow("Cannot specify both blockNetwork=true and allowList");
+    ).rejects.toThrow(
+      "Cannot specify both 'blockNetwork=true' and 'allowList'. Use 'allowList' with CIDR notation to allow specific ranges, or use 'blockNetwork=true' to block all outbound traffic."
+    );
+
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects blockNetwork=true with empty allowList", async () => {
+    const requestMock = jest.spyOn(beamClient, "request");
+
+    const instance = new SandboxInstance(
+      {
+        containerId: "sandbox-123",
+        stubId: "stub-123",
+        url: "",
+        ok: true,
+        errorMsg: "",
+      },
+      new Sandbox({ name: "networked-sandbox" })
+    );
+
+    await expect(
+      instance.updateNetworkPermissions(true, [])
+    ).rejects.toThrow(
+      "Cannot specify both 'blockNetwork=true' and 'allowList'. Use 'allowList' with CIDR notation to allow specific ranges, or use 'blockNetwork=true' to block all outbound traffic."
+    );
 
     expect(requestMock).not.toHaveBeenCalled();
   });

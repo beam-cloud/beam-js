@@ -379,13 +379,21 @@ export class SandboxInstance extends PodInstance {
 
   /**
    * Dynamically update outbound network permissions for the sandbox.
+   *
+   * Parameters:
+   * - blockNetwork (boolean): If true, block all outbound network access. Defaults to false.
+   * - allowList (string[]): Optional list of allowed outbound domains/IPs. Cannot be used with blockNetwork=true.
+   *
+   * Throws: SandboxConnectionError if the update fails.
    */
   public async updateNetworkPermissions(
     blockNetwork: boolean = false,
     allowList?: string[]
   ): Promise<void> {
-    if (blockNetwork && allowList && allowList.length > 0) {
-      throw new Error("Cannot specify both blockNetwork=true and allowList");
+    if (blockNetwork && allowList !== undefined) {
+      throw new Error(
+        "Cannot specify both 'blockNetwork=true' and 'allowList'. Use 'allowList' with CIDR notation to allow specific ranges, or use 'blockNetwork=true' to block all outbound traffic."
+      );
     }
 
     const resp = await beamClient.request({
@@ -399,7 +407,7 @@ export class SandboxInstance extends PodInstance {
     });
     const data = resp.data as PodSandboxUpdateNetworkPermissionsResponse;
     if (!data.ok) {
-      throw new SandboxProcessError(
+      throw new SandboxConnectionError(
         data.errorMsg || "Failed to update network permissions"
       );
     }
