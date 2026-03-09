@@ -217,6 +217,18 @@ export interface PodSandboxExposePortResponse {
   errorMsg: string;
 }
 
+export interface PodSandboxUpdateNetworkPermissionsRequest {
+  containerId: string;
+  stubId: string;
+  blockNetwork: boolean;
+  allowList: string[];
+}
+
+export interface PodSandboxUpdateNetworkPermissionsResponse {
+  ok: boolean;
+  errorMsg: string;
+}
+
 export interface PodSandboxListUrlsResponse {
   ok: boolean;
   urls: Record<string, string>;

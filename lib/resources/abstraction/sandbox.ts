@@ -7,6 +7,7 @@ import type {
   PodSandboxCreateImageFromFilesystemResponse,
   PodSandboxUpdateTtlResponse,
   PodSandboxExposePortResponse,
+  PodSandboxUpdateNetworkPermissionsResponse,
   PodSandboxExecResponse,
   PodSandboxListFilesResponse,
   PodSandboxCreateDirectoryResponse,
@@ -51,6 +52,10 @@ function shellQuote(arg: string): string {
  *   for sandboxes that never timeout.
  * - volumes (Volume[]): The volumes and/or cloud buckets to mount into the sandbox container.
  * - secrets (SecretVar[]): Secrets to pass to the sandbox, e.g. [{ name: "API_KEY" }].
+ * - blockNetwork (boolean): Whether to block all outbound network access. Cannot be combined with
+ *   `allowList`.
+ * - allowList (string[]): CIDR ranges that are allowed for outbound network access. When specified,
+ *   all other outbound traffic is blocked.
  * - authorized (boolean): Ignored for sandboxes (forced to false).
  */
 export class Sandbox extends Pod {
@@ -373,9 +378,37 @@ export class SandboxInstance extends PodInstance {
   }
 
   /**
-   * List all exposed URLs in the sandbox.
+   * Dynamically update outbound network permissions for the sandbox.
    */
-  public async listUrls(): Promise<string[]> {
+  public async updateNetworkPermissions(
+    blockNetwork: boolean = false,
+    allowList?: string[]
+  ): Promise<void> {
+    if (blockNetwork && allowList && allowList.length > 0) {
+      throw new Error("Cannot specify both blockNetwork=true and allowList");
+    }
+
+    const resp = await beamClient.request({
+      method: "POST",
+      url: `/api/v1/gateway/pods/${this.containerId}/network/update`,
+      data: {
+        stubId: this.stubId,
+        blockNetwork,
+        allowList: allowList ?? [],
+      },
+    });
+    const data = resp.data as PodSandboxUpdateNetworkPermissionsResponse;
+    if (!data.ok) {
+      throw new SandboxProcessError(
+        data.errorMsg || "Failed to update network permissions"
+      );
+    }
+  }
+
+  /**
+   * List all exposed URLs in the sandbox, keyed by port.
+   */
+  public async listUrls(): Promise<Record<number, string>> {
     const resp = await beamClient.request({
       method: "GET",
       url: `/api/v1/gateway/pods/${this.containerId}/urls`,
@@ -383,7 +416,13 @@ export class SandboxInstance extends PodInstance {
     const data = resp.data as PodSandboxListUrlsResponse;
     if (!data.ok)
       throw new SandboxProcessError(data.errorMsg || "Failed to list URLs");
-    return Object.values(data.urls || {});
+
+    const urlsByPort: Record<number, string> = {};
+    for (const [port, url] of Object.entries(data.urls || {})) {
+      urlsByPort[Number(port)] = url;
+    }
+
+    return urlsByPort;
   }
 
   /**
