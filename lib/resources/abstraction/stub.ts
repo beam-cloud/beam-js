@@ -52,6 +52,8 @@ export interface StubConfig {
   inputs?: Schema;
   outputs?: Schema;
   tcp: boolean;
+  blockNetwork: boolean;
+  allowList?: string[];
 }
 
 export interface CreateStubConfig extends Partial<StubConfig> {
@@ -110,6 +112,8 @@ export class StubBuilder {
     inputs = undefined,
     outputs = undefined,
     tcp = false,
+    blockNetwork = false,
+    allowList = undefined,
   }: CreateStubConfig) {
     this.config = {} as StubConfig;
     this.config.name = name;
@@ -137,6 +141,14 @@ export class StubBuilder {
     this.config.pricing = pricing;
     this.config.inputs = inputs;
     this.config.outputs = outputs;
+    this.config.blockNetwork = blockNetwork;
+    this.config.allowList = allowList;
+
+    if (this.config.blockNetwork && this.config.allowList !== undefined) {
+      throw new Error(
+        "Cannot specify both 'blockNetwork=true' and 'allowList'. Use 'allowList' with CIDR notation to allow specific ranges, or use 'blockNetwork=true' to block all outbound traffic."
+      );
+    }
 
     // Set GPU count if GPU specified but count is 0
     if (
@@ -340,6 +352,8 @@ export class StubBuilder {
         inputs,
         outputs,
         tcp: this.config.tcp,
+        blockNetwork: this.config.blockNetwork,
+        allowList: this.config.allowList,
       };
 
       try {

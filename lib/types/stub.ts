@@ -72,6 +72,8 @@ export interface GetOrCreateStubRequest {
   inputs?: Schema;
   outputs?: Schema;
   tcp: boolean;
+  blockNetwork: boolean;
+  allowList?: string[];
 }
 
 export interface GetOrCreateStubResponse {
