@@ -391,9 +391,8 @@ export class FileSyncer {
   ): Promise<FileSyncResult> {
     console.log("Syncing files");
 
-    this.initIgnoreFile();
-
     if (!ignorePatterns || ignorePatterns.length === 0) {
+      this.initIgnoreFile();
       this.ignorePatterns = this.readIgnoreFile();
     } else {
       this.ignorePatterns = ignorePatterns;
