@@ -1,5 +1,5 @@
 import beamClient from "../lib";
-import { Sandbox, SandboxInstance } from "../lib/resources/abstraction/sandbox";
+import { Sandbox, SandboxConnectionError, SandboxInstance } from "../lib/resources/abstraction/sandbox";
 import { EStubType } from "../lib/types/stub";
 
 describe("Sandbox network parity", () => {
@@ -164,5 +164,44 @@ describe("Sandbox network parity", () => {
       3000: "https://3000.example.com",
       8080: "https://8080.example.com",
     });
+  });
+});
+
+describe("prepareRuntime surfaces real errors via lastError", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => undefined);
+    jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    jest.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("file sync exception is surfaced in SandboxConnectionError", async () => {
+    const sandbox = new Sandbox({ name: "test-sandbox" });
+    sandbox.stub.imageAvailable = true;
+
+    jest
+      .spyOn(sandbox.stub.syncer, "sync")
+      .mockRejectedValue(new Error("EROFS: read-only file system, open '.beamignore'"));
+
+    await expect(sandbox.create()).rejects.toThrow(SandboxConnectionError);
+    await expect(sandbox.create()).rejects.toThrow(/EROFS/);
+  });
+
+  test("stub creation API error message is surfaced in SandboxConnectionError", async () => {
+    const sandbox = new Sandbox({ name: "test-sandbox" });
+    sandbox.stub.imageAvailable = true;
+    sandbox.stub.filesSynced = true;
+    sandbox.stub.objectId = "object-123";
+    sandbox.stub.config.image.id = "image-123";
+
+    jest.spyOn(beamClient, "request").mockResolvedValue({
+      data: { ok: false, errMsg: "Workspace quota exceeded" },
+    });
+
+    await expect(sandbox.create()).rejects.toThrow(SandboxConnectionError);
+    await expect(sandbox.create()).rejects.toThrow(/Workspace quota exceeded/);
   });
 });

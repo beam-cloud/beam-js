@@ -85,6 +85,7 @@ export class StubBuilder {
   public extra?: any = {};
   public imageId?: string = "";
   public objectId?: string = "";
+  public lastError?: Error;
 
   constructor({
     name,
@@ -229,7 +230,8 @@ export class StubBuilder {
     ignorePatterns?: string[]
   ): Promise<boolean> {
     if (!beamClient) {
-      console.error("Client not set. Call setClient() first.");
+      this.lastError = new Error("Client not set. Call setClient() first.");
+      console.error(this.lastError.message);
       return false;
     }
 
@@ -248,10 +250,12 @@ export class StubBuilder {
           image.config.pythonVersion =
             imageBuildResult.pythonVersion || "python3.10";
         } else {
+          this.lastError = new Error("Image build failed");
           console.error("Image build failed ❌");
           return false;
         }
       } catch (error) {
+        this.lastError = error instanceof Error ? error : new Error(String(error));
         console.error("Image build failed:", error);
         return false;
       }
@@ -265,10 +269,12 @@ export class StubBuilder {
           this.filesSynced = true;
           this.objectId = syncResult.objectId;
         } else {
+          this.lastError = new Error("File sync failed");
           console.error("File sync failed");
           return false;
         }
       } catch (error) {
+        this.lastError = error instanceof Error ? error : new Error(String(error));
         console.error("File sync failed:", error);
         return false;
       }
@@ -277,18 +283,20 @@ export class StubBuilder {
     // Prepare volumes
     for (const volume of this.config.volumes || []) {
       if (!volume.ready && !(await volume.getOrCreate())) {
-        console.error(`Volume is not ready: ${volume.name}`);
+        this.lastError = new Error(`Volume is not ready: ${volume.name}`);
+        console.error(this.lastError.message);
         return false;
       }
     }
 
     // Validate autoscaler
     if (!this.config.autoscaler.type) {
-      console.error(
+      this.lastError = new Error(
         `Invalid Autoscaler class: ${
           this.config.autoscaler.constructor.name || ""
         }`
       );
+      console.error(this.lastError.message);
       return false;
     }
 
@@ -400,10 +408,12 @@ export class StubBuilder {
           }
         } else {
           const error = stubResponse.errMsg || "Failed to get or create stub";
+          this.lastError = new Error(error);
           console.error(error);
           return false;
         }
       } catch (error) {
+        this.lastError = error instanceof Error ? error : new Error(String(error));
         console.error("Failed to create stub:", error);
         return false;
       }

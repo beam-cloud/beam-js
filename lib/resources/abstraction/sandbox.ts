@@ -198,7 +198,11 @@ export class Sandbox extends Pod {
       ignorePatterns
     );
     if (!prepared) {
-      throw new SandboxConnectionError("Failed to prepare runtime");
+      const detail = this.stub.lastError?.message ?? "unknown reason";
+      throw new SandboxConnectionError(
+        `Failed to prepare runtime: ${detail}`,
+        { cause: this.stub.lastError }
+      );
     }
 
     // eslint-disable-next-line no-console
