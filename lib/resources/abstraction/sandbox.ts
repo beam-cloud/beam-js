@@ -90,7 +90,7 @@ export class Sandbox extends Pod {
     };
     if (!data.ok) {
       throw new SandboxConnectionError(
-        data.errorMsg || "Failed to connect to sandbox"
+        data.errorMsg || "Failed to connect to sandbox",
       );
     }
 
@@ -103,7 +103,7 @@ export class Sandbox extends Pod {
         errorMsg: "",
         stubId: data.stubId || "",
       },
-      sandbox
+      sandbox,
     );
   }
 
@@ -118,7 +118,7 @@ export class Sandbox extends Pod {
    * Throws: SandboxConnectionError if the sandbox creation fails.
    */
   public static async createFromSnapshot(
-    snapshotId: string
+    snapshotId: string,
   ): Promise<SandboxInstance> {
     // eslint-disable-next-line no-console
     console.log(`Creating sandbox from snapshot: ${snapshotId}`);
@@ -137,7 +137,7 @@ export class Sandbox extends Pod {
 
     if (!body.ok) {
       throw new SandboxConnectionError(
-        body.errorMsg || "Failed to create sandbox from snapshot"
+        body.errorMsg || "Failed to create sandbox from snapshot",
       );
     }
 
@@ -156,7 +156,7 @@ export class Sandbox extends Pod {
     };
     if (!connectData.ok) {
       throw new SandboxConnectionError(
-        connectData.errorMsg || "Failed to connect to sandbox"
+        connectData.errorMsg || "Failed to connect to sandbox",
       );
     }
 
@@ -169,7 +169,7 @@ export class Sandbox extends Pod {
         ok: body.ok,
         errorMsg: body.errorMsg || "",
       },
-      sandbox
+      sandbox,
     );
   }
 
@@ -195,14 +195,11 @@ export class Sandbox extends Pod {
       undefined,
       EStubType.Sandbox,
       true,
-      ignorePatterns
+      ignorePatterns,
     );
     if (!prepared) {
       const detail = this.stub.lastError?.message ?? "unknown reason";
-      throw new SandboxConnectionError(
-        `Failed to prepare runtime: ${detail}`,
-        { cause: this.stub.lastError }
-      );
+      throw new SandboxConnectionError(`Failed to prepare runtime: ${detail}`);
     }
 
     // eslint-disable-next-line no-console
@@ -221,7 +218,7 @@ export class Sandbox extends Pod {
 
     if (!body.ok) {
       throw new SandboxConnectionError(
-        body.errorMsg || "Failed to create sandbox"
+        body.errorMsg || "Failed to create sandbox",
       );
     }
 
@@ -240,19 +237,19 @@ export class Sandbox extends Pod {
     };
     if (!connectData.ok) {
       throw new SandboxConnectionError(
-        connectData.errorMsg || "Failed to connect to sandbox"
+        connectData.errorMsg || "Failed to connect to sandbox",
       );
     }
 
     if ((this.stub.config.keepWarmSeconds as number) < 0) {
       // eslint-disable-next-line no-console
       console.log(
-        "This sandbox has no timeout, it will run until it is shut down manually."
+        "This sandbox has no timeout, it will run until it is shut down manually.",
       );
     } else {
       // eslint-disable-next-line no-console
       console.log(
-        `This sandbox will timeout after ${this.stub.config.keepWarmSeconds} seconds.`
+        `This sandbox will timeout after ${this.stub.config.keepWarmSeconds} seconds.`,
       );
     }
 
@@ -264,7 +261,7 @@ export class Sandbox extends Pod {
         errorMsg: body.errorMsg || "",
         url: "",
       },
-      this
+      this,
     );
   }
 }
@@ -327,7 +324,7 @@ export class SandboxInstance extends PodInstance {
    */
   public async createImageFromFilesystem(): Promise<string> {
     console.log(
-      `Creating image from filesystem of: ${this.containerId}. This may take a few minutes...`
+      `Creating image from filesystem of: ${this.containerId}. This may take a few minutes...`,
     );
 
     const resp = await beamClient.request({
@@ -341,7 +338,7 @@ export class SandboxInstance extends PodInstance {
     console.log("data", data);
     if (!data.ok)
       throw new SandboxProcessError(
-        data.errorMsg || "Failed to create image from filesystem"
+        data.errorMsg || "Failed to create image from filesystem",
       );
     return data.imageId;
   }
@@ -392,11 +389,11 @@ export class SandboxInstance extends PodInstance {
    */
   public async updateNetworkPermissions(
     blockNetwork: boolean = false,
-    allowList?: string[]
+    allowList?: string[],
   ): Promise<void> {
     if (blockNetwork && allowList !== undefined) {
       throw new Error(
-        "Cannot specify both 'blockNetwork=true' and 'allowList'. Use 'allowList' with CIDR notation to allow specific ranges, or use 'blockNetwork=true' to block all outbound traffic."
+        "Cannot specify both 'blockNetwork=true' and 'allowList'. Use 'allowList' with CIDR notation to allow specific ranges, or use 'blockNetwork=true' to block all outbound traffic.",
       );
     }
 
@@ -412,7 +409,7 @@ export class SandboxInstance extends PodInstance {
     const data = resp.data as PodSandboxUpdateNetworkPermissionsResponse;
     if (!data.ok) {
       throw new SandboxConnectionError(
-        data.errorMsg || "Failed to update network permissions"
+        data.errorMsg || "Failed to update network permissions",
       );
     }
   }
@@ -461,7 +458,7 @@ export class SandboxInstance extends PodInstance {
     code: string,
     blocking: boolean = true,
     cwd?: string,
-    env?: Record<string, string>
+    env?: Record<string, string>,
   ): Promise<SandboxProcessResponse | SandboxProcess> {
     const process = await this._exec(["python3", "-c", code], { cwd, env });
     if (blocking) {
@@ -484,7 +481,7 @@ export class SandboxInstance extends PodInstance {
   /** Run an arbitrary command in the sandbox. */
   public async exec(
     command: string | string[],
-    opts?: ExecOptions
+    opts?: ExecOptions,
   ): Promise<SandboxProcess> {
     const commandList = Array.isArray(command) ? command : [command];
     return this._exec(commandList, opts);
@@ -492,7 +489,7 @@ export class SandboxInstance extends PodInstance {
 
   private async _exec(
     command: string[] | string,
-    opts?: { cwd?: string; env?: Record<string, string> }
+    opts?: { cwd?: string; env?: Record<string, string> },
   ): Promise<SandboxProcess> {
     const commandList = Array.isArray(command) ? command : [command];
     const shellCommand = commandList
@@ -567,7 +564,7 @@ export class SandboxProcessStream {
 
   constructor(
     process: SandboxProcess,
-    fetchFn: () => Promise<string> | string
+    fetchFn: () => Promise<string> | string,
   ) {
     this.process = process;
     this.fetch_fn = fetchFn;
@@ -877,22 +874,31 @@ export class SandboxFileInfo {
 
 /** A position in a file. */
 export class SandboxFilePosition {
-  constructor(public line: number, public column: number) {}
+  constructor(
+    public line: number,
+    public column: number,
+  ) {}
 }
 /** A range in a file. */
 export class SandboxFileSearchRange {
   constructor(
     public start: SandboxFilePosition,
-    public end: SandboxFilePosition
+    public end: SandboxFilePosition,
   ) {}
 }
 /** A match in a file. */
 export class SandboxFileSearchMatch {
-  constructor(public range: SandboxFileSearchRange, public content: string) {}
+  constructor(
+    public range: SandboxFileSearchRange,
+    public content: string,
+  ) {}
 }
 /** A search result in a file. */
 export class SandboxFileSearchResult {
-  constructor(public path: string, public matches: SandboxFileSearchMatch[]) {}
+  constructor(
+    public path: string,
+    public matches: SandboxFileSearchMatch[],
+  ) {}
 }
 
 /**
@@ -909,7 +915,7 @@ export class SandboxFileSystem {
   /** Upload a local file to the sandbox. */
   public async uploadFile(
     localPath: string,
-    sandboxPath: string
+    sandboxPath: string,
   ): Promise<void> {
     const content = fs.readFileSync(localPath);
     const resp = await beamClient.request({
@@ -924,14 +930,14 @@ export class SandboxFileSystem {
     const data = resp.data as { ok: boolean; errorMsg?: string };
     if (!data.ok)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to upload file"
+        data.errorMsg || "Failed to upload file",
       );
   }
 
   /** Download a file from the sandbox to a local path. */
   public async downloadFile(
     sandboxPath: string,
-    localPath: string
+    localPath: string,
   ): Promise<void> {
     const resp = await beamClient.request({
       method: "GET",
@@ -942,7 +948,7 @@ export class SandboxFileSystem {
     const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
     if (!data.ok || !data.data)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to download file"
+        data.errorMsg || "Failed to download file",
       );
     const buf = Buffer.from(data.data, "base64");
     fs.writeFileSync(localPath, buf);
@@ -995,7 +1001,7 @@ export class SandboxFileSystem {
           owner: file.owner,
           group: file.group,
           permissions: Number(file.permissions),
-        })
+        }),
     );
   }
 
@@ -1009,7 +1015,7 @@ export class SandboxFileSystem {
     const data = resp.data as PodSandboxCreateDirectoryResponse;
     if (!data.ok)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to create directory"
+        data.errorMsg || "Failed to create directory",
       );
   }
 
@@ -1024,7 +1030,7 @@ export class SandboxFileSystem {
     const data = resp.data as { ok: boolean; errorMsg?: string };
     if (!data.ok)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to delete directory"
+        data.errorMsg || "Failed to delete directory",
       );
   }
 
@@ -1039,7 +1045,7 @@ export class SandboxFileSystem {
     const data = resp.data as { ok: boolean; errorMsg?: string };
     if (!data.ok)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to delete file"
+        data.errorMsg || "Failed to delete file",
       );
   }
 
@@ -1047,7 +1053,7 @@ export class SandboxFileSystem {
   public async replaceInFiles(
     sandboxPath: string,
     oldString: string,
-    newString: string
+    newString: string,
   ): Promise<void> {
     const resp = await beamClient.request({
       method: "POST",
@@ -1061,14 +1067,14 @@ export class SandboxFileSystem {
     const data = resp.data as { ok: boolean; errorMsg?: string };
     if (!data.ok)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to replace in files"
+        data.errorMsg || "Failed to replace in files",
       );
   }
 
   /** Find files matching a pattern in the sandbox. */
   public async findInFiles(
     sandboxPath: string,
-    pattern: string
+    pattern: string,
   ): Promise<SandboxFileSearchResult[]> {
     const resp = await beamClient.request({
       method: "POST",
@@ -1082,7 +1088,7 @@ export class SandboxFileSystem {
     };
     if (!data.ok || !data.results)
       throw new SandboxFileSystemError(
-        data.errorMsg || "Failed to find in files"
+        data.errorMsg || "Failed to find in files",
       );
 
     const results: SandboxFileSearchResult[] = [];
@@ -1094,15 +1100,15 @@ export class SandboxFileSystem {
             new SandboxFileSearchRange(
               new SandboxFilePosition(
                 match.range.start.line,
-                match.range.start.column
+                match.range.start.column,
               ),
               new SandboxFilePosition(
                 match.range.end.line,
-                match.range.end.column
-              )
+                match.range.end.column,
+              ),
             ),
-            match.content
-          )
+            match.content,
+          ),
         );
       }
       results.push(new SandboxFileSearchResult(result.path, matches));
