@@ -17,6 +17,14 @@ import { camelCaseToSnakeCaseKeys } from "../../util";
 import beamClient from "../..";
 
 const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
+const DEFAULT_IMAGE_BUILD_CACHE_TTL_MS = 300_000;
+
+type ImageBuildCacheEntry = {
+  result: ImageBuildResult;
+  expiresAt: number;
+};
+
+const imageBuildCache = new Map<string, ImageBuildCacheEntry>();
 
 export interface CreateImageConfig extends Partial<ImageConfig> {
   pythonVersion?: PythonVersion | string;
@@ -135,6 +143,91 @@ export class Image {
     return transformed;
   }
 
+  private _cacheKey(): string {
+    return JSON.stringify({
+      pythonPackages: this.config.pythonPackages,
+      pythonVersion: this.config.pythonVersion,
+      commands: this.config.commands,
+      buildSteps: this.config.buildSteps,
+      baseImage: this.config.baseImage,
+      envVars: this.config.envVars,
+      dockerfile: this.config.dockerfile,
+      buildCtxObject: this.config.buildCtxObject,
+      secrets: this.config.secrets,
+      gpu: this.config.gpu,
+      ignorePython: this.config.ignorePython,
+      imageId: this.config.imageId,
+      includeFilesPatterns: this.config.includeFilesPatterns,
+    });
+  }
+
+  private _cachedBuildResult(cacheKey: string): ImageBuildResult | undefined {
+    if (this._imageBuildCacheDisabled()) {
+      return undefined;
+    }
+
+    const entry = imageBuildCache.get(cacheKey);
+    if (!entry) {
+      return undefined;
+    }
+
+    if (entry.expiresAt <= Date.now()) {
+      imageBuildCache.delete(cacheKey);
+      return undefined;
+    }
+
+    return entry.result;
+  }
+
+  private _rememberBuildResult(
+    cacheKey: string,
+    result: ImageBuildResult
+  ): void {
+    if (!result.success) {
+      return;
+    }
+
+    this.id = result.imageId || "";
+    this.isAvailable = true;
+    this.config.imageId = result.imageId || "";
+    this.config.pythonVersion = result.pythonVersion || this.config.pythonVersion;
+
+    const entry: ImageBuildCacheEntry = {
+      result,
+      expiresAt: Date.now() + this._imageBuildCacheTTLMS(),
+    };
+
+    imageBuildCache.set(cacheKey, entry);
+    imageBuildCache.set(this._cacheKey(), entry);
+  }
+
+  private _imageBuildCacheDisabled(): boolean {
+    if (typeof process === "undefined") {
+      return false;
+    }
+
+    const value = process.env.BEAM_DISABLE_IMAGE_BUILD_CACHE || "";
+    return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+  }
+
+  private _imageBuildCacheTTLMS(): number {
+    if (typeof process === "undefined") {
+      return DEFAULT_IMAGE_BUILD_CACHE_TTL_MS;
+    }
+
+    const value = process.env.BEAM_IMAGE_BUILD_CACHE_TTL_SECONDS;
+    if (!value) {
+      return DEFAULT_IMAGE_BUILD_CACHE_TTL_MS;
+    }
+
+    const ttlSeconds = Number(value);
+    if (!Number.isFinite(ttlSeconds) || ttlSeconds < 0) {
+      return DEFAULT_IMAGE_BUILD_CACHE_TTL_MS;
+    }
+
+    return ttlSeconds * 1000;
+  }
+
   private async *_createAsyncIterable(
     response: any
   ): AsyncIterable<BuildImageResponse> {
@@ -220,18 +313,31 @@ export class Image {
   }
 
   async build(): Promise<ImageBuildResult> {
-    console.log("Building image...");
-
     if (this.config.baseImage && this.config.dockerfile) {
       throw new Error(
         "Cannot use fromDockerfile and provide a custom base image."
       );
     }
 
+    const cacheKey = this._cacheKey();
+    const cachedResult = this._cachedBuildResult(cacheKey);
+    if (cachedResult) {
+      console.log("Using cached image");
+      this.id = cachedResult.imageId || "";
+      this.isAvailable = true;
+      this.config.imageId = cachedResult.imageId || "";
+      this.config.pythonVersion =
+        cachedResult.pythonVersion || this.config.pythonVersion;
+      return cachedResult;
+    }
+
+    console.log("Building image...");
+
     // Check if image already exists
     const { exists, result } = await this.exists();
     if (exists) {
       console.log("Using cached image");
+      this._rememberBuildResult(cacheKey, result);
       return result;
     }
 
@@ -282,11 +388,13 @@ export class Image {
     }
 
     console.log("Build complete");
-    return {
+    const buildResult = {
       success: true,
       imageId: lastResponse.imageId,
       pythonVersion: lastResponse.pythonVersion,
     };
+    this._rememberBuildResult(cacheKey, buildResult);
+    return buildResult;
   }
 
   /**
