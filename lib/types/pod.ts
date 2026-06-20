@@ -108,7 +108,17 @@ export interface PodSandboxListProcessesRequest {
 export interface PodSandboxListProcessesResponse {
   ok: boolean;
   errorMsg: string;
-  pids: number[];
+  pids?: number[];
+  processes?: ProcessInfo[];
+}
+
+export interface ProcessInfo {
+  running: boolean;
+  pid: number;
+  cmd: string;
+  cwd: string;
+  env: string[];
+  exitCode: number;
 }
 
 export interface PodSandboxUploadFileRequest {

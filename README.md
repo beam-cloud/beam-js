@@ -38,41 +38,84 @@ yarn add @beamcloud/beam-js@rc
 
 ## Quickstart
 
-Run a simple Node.js server in a sandbox.
+Create a sandbox, run code, write a file, and expose a small HTTP server.
 
 ```typescript
 import { beamOpts, Image, Sandbox } from "@beamcloud/beam-js";
 
 beamOpts.token = process.env.BEAM_TOKEN!;
-beamOpts.workspaceId = process.env.BEAM_WORKSPACE_ID!;
 
 async function main() {
-  const image = new Image({
-    baseImage: "node:20",
-    commands: [
-      "apt update",
-      "apt install -y nodejs npm",
-      "git clone https://github.com/beam-cloud/quickstart-node.git /app",
-    ],
-  });
-
   const sandbox = new Sandbox({
     name: "quickstart",
-    image: image,
-    cpu: 2,
-    memory: 1024,
+    image: Image.fromRegistry("python:3.11-slim"),
+    cpu: 1,
+    memory: "512Mi",
     keepWarmSeconds: 300,
   });
 
   const instance = await sandbox.create();
+  try {
+    const result = await instance.runCode("print('hello from Beam JS')");
+    console.log(result);
 
-  const process4 = await instance.exec(["sh", "-c", "cd /app && node server.js"]);
+    await instance.fs.writeText("/workspace/index.html", "hello from a sandbox");
+    await instance.exec(
+      [
+        "python3",
+        "-u",
+        "-m",
+        "http.server",
+        "8765",
+        "--bind",
+        "0.0.0.0",
+      ],
+      { cwd: "/workspace" },
+    );
 
-  const url = await instance.exposePort(3000);
-  console.log(`Server is running at ${url}`);
+    const url = await instance.exposePort(8765);
+    console.log(`Server is running at ${url}`);
+  } finally {
+    await instance.terminate();
+  }
 }
 
 main();
+```
+
+## Sandbox examples
+
+Run these from a checkout of this repository:
+
+```bash
+BEAM_TOKEN=... npx tsx examples/sandbox-basic.ts
+BEAM_TOKEN=... npx tsx examples/sandbox-http.ts
+BEAM_TOKEN=... npx tsx examples/sandbox-snapshot.ts
+```
+
+Docker-in-Docker support requires an image with Docker installed and
+`dockerEnabled: true`:
+
+```bash
+BEAM_TOKEN=... npx tsx examples/sandbox-docker.ts
+```
+
+The SDK defaults to Beam production (`https://app.beam.cloud`). Set
+`BEAM_GATEWAY_URL` only when testing a development gateway.
+
+## Production sandbox e2e tests
+
+The normal test suite does not create cloud resources. Run the sandbox e2e tests
+explicitly:
+
+```bash
+BEAM_TOKEN=... npm run test:e2e:sandbox
+```
+
+Docker coverage is opt-in because it builds a Docker-enabled image:
+
+```bash
+BEAM_TOKEN=... BEAM_SANDBOX_E2E_DOCKER=1 npm run test:e2e:sandbox
 ```
 
 ## Support

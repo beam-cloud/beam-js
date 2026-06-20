@@ -3,7 +3,7 @@ import { camelCaseToSnakeCaseKeys } from "./util";
 
 export interface BeamClientOpts {
   token: string;
-  workspaceId: string;
+  workspaceId?: string;
   gatewayUrl?: string;
   timeout?: number;
 }
@@ -24,9 +24,6 @@ class BeamClient {
     }
     if (!beamOpts.gatewayUrl) {
       throw new Error("Beam gateway URL is not set");
-    }
-    if (!beamOpts.workspaceId) {
-      throw new Error("Beam workspace ID is not set");
     }
 
     if (!this._client) {
@@ -79,6 +76,7 @@ export {
   Sandbox,
   SandboxInstance,
   SandboxFileSystem,
+  SandboxDockerManager,
 } from "./resources/abstraction/sandbox";
 
 // Export Image classes and types

@@ -12,8 +12,10 @@ import type {
   PodSandboxListFilesResponse,
   PodSandboxCreateDirectoryResponse,
   PodSandboxListUrlsResponse,
+  PodSandboxListProcessesResponse,
   PodInstanceData,
   ExecOptions,
+  ProcessInfo,
 } from "../../types/pod";
 import beamClient from "../..";
 
@@ -28,6 +30,91 @@ function shellQuote(arg: string): string {
   if (arg === "") return "''";
   // Simple POSIX single-quote escaping
   return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+const SANDBOX_TERMINAL_STATUSES = new Set([
+  "complete",
+  "completed",
+  "exited",
+  "failed",
+  "error",
+  "stopped",
+  "terminated",
+  "timeout",
+]);
+
+function isSandboxTerminalStatus(status: string): boolean {
+  return SANDBOX_TERMINAL_STATUSES.has((status || "").trim().toLowerCase());
+}
+
+function defaultSandboxExitCode(status: string): number {
+  const normalized = (status || "").trim().toLowerCase();
+  if (normalized === "failed" || normalized === "error" || normalized === "timeout") {
+    return 1;
+  }
+  if (normalized === "terminated") {
+    return 137;
+  }
+  return 0;
+}
+
+const TRANSIENT_SANDBOX_ERRORS = [
+  "context deadline exceeded",
+  "connection refused",
+  "failed to connect to sandbox",
+  "i/o timeout",
+  "process manager is not ready",
+  "waiting for connections to become ready",
+];
+
+const DOCKER_SANDBOX_NAMESPACE_ARGS = ["--network", "host", "--pid", "host"];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "object" && error !== null) {
+    const maybeAxios = error as {
+      response?: { data?: { errorMsg?: string; error_msg?: string; message?: string } };
+    };
+    return (
+      maybeAxios.response?.data?.errorMsg ||
+      maybeAxios.response?.data?.error_msg ||
+      maybeAxios.response?.data?.message ||
+      String(error)
+    );
+  }
+  return String(error);
+}
+
+function isTransientSandboxError(error: unknown): boolean {
+  const message = errorMessage(error).toLowerCase();
+  return TRANSIENT_SANDBOX_ERRORS.some((pattern) => message.includes(pattern));
+}
+
+async function retryTransientSandboxCall<T>(
+  fn: () => Promise<T>,
+  timeoutMs: number = 120_000,
+  delayMs: number = 1_000,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!isTransientSandboxError(error)) {
+        throw error;
+      }
+      lastError = error;
+      await sleep(delayMs);
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -57,6 +144,8 @@ function shellQuote(arg: string): string {
  * - allowList (string[]): CIDR ranges that are allowed for outbound network access. When specified,
  *   all other outbound traffic is blocked.
  * - authorized (boolean): Ignored for sandboxes (forced to false).
+ * - dockerEnabled (boolean): Start Docker-in-Docker support inside the sandbox. Pair with
+ *   `Image.withDocker()`.
  */
 export class Sandbox extends Pod {
   public syncLocalDir: boolean = false;
@@ -289,6 +378,7 @@ export class Sandbox extends Pod {
 export class SandboxInstance extends PodInstance {
   public stubId: string;
   public fs: SandboxFileSystem;
+  public docker: SandboxDockerManager;
   public processes: Record<number, SandboxProcess> = {};
   public terminated: boolean = false;
 
@@ -296,6 +386,7 @@ export class SandboxInstance extends PodInstance {
     super(data, pod);
     this.stubId = data.stubId;
     this.fs = new SandboxFileSystem(this);
+    this.docker = new SandboxDockerManager(this);
   }
 
   /**
@@ -348,6 +439,57 @@ export class SandboxInstance extends PodInstance {
     return this.containerId;
   }
 
+  /** Get the current sandbox status as `[exitCode, status]`. */
+  public async status(): Promise<[number, string]> {
+    const data = await retryTransientSandboxCall(async () => {
+      const resp = await beamClient.request({
+        method: "GET",
+        url: `api/v1/gateway/pods/${this.containerId}/status`,
+        timeout: 300000,
+      });
+      const response = resp.data as {
+        ok: boolean;
+        errorMsg?: string;
+        status?: string;
+        exitCode?: number;
+      };
+      if (!response.ok) {
+        throw new SandboxProcessError(response.errorMsg || "Failed to get status");
+      }
+      return response;
+    });
+    return [data.exitCode ?? -1, data.status || ""];
+  }
+
+  /** Return the sandbox exit code if it has exited, otherwise null. */
+  public async poll(): Promise<number | null> {
+    const [exitCode, status] = await this.status();
+    if (!isSandboxTerminalStatus(status)) {
+      return null;
+    }
+    if (exitCode < 0) {
+      return defaultSandboxExitCode(status);
+    }
+    return exitCode;
+  }
+
+  /** Wait for the sandbox to exit and return its exit code. */
+  public async wait(timeoutMs?: number): Promise<number> {
+    const deadline = timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
+    while (true) {
+      const exitCode = await this.poll();
+      if (exitCode !== null) {
+        return exitCode;
+      }
+      if (deadline !== undefined && Date.now() >= deadline) {
+        throw new SandboxProcessError(
+          `Sandbox ${this.containerId} did not exit within ${timeoutMs}ms`,
+        );
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+
   /**
    * Update the keep warm setting of the sandbox.
    *
@@ -355,7 +497,7 @@ export class SandboxInstance extends PodInstance {
    */
   public async updateTtl(ttl: number): Promise<void> {
     const resp = await beamClient.request({
-      method: "PATCH",
+      method: "POST",
       url: `/api/v1/gateway/pods/${this.containerId}/ttl`,
       data: { ttl },
     });
@@ -483,8 +625,18 @@ export class SandboxInstance extends PodInstance {
     command: string | string[],
     opts?: ExecOptions,
   ): Promise<SandboxProcess> {
-    const commandList = Array.isArray(command) ? command : [command];
-    return this._exec(commandList, opts);
+    if (typeof command === "string") {
+      return this.execShell(command, opts);
+    }
+    return this._exec(command, opts);
+  }
+
+  /** Run shell text in the sandbox using `sh -lc`. */
+  public async execShell(
+    command: string,
+    opts?: ExecOptions,
+  ): Promise<SandboxProcess> {
+    return this._exec(["sh", "-lc", command], opts);
   }
 
   private async _exec(
@@ -515,8 +667,47 @@ export class SandboxInstance extends PodInstance {
     return process;
   }
 
-  /** List all processes running in the sandbox. */
-  public listProcesses(): SandboxProcess[] {
+  /** List locally-known process handles without contacting the server. */
+  public localProcesses(): SandboxProcess[] {
+    return Object.values(this.processes);
+  }
+
+  /** List all processes from server state so reconnects work. */
+  public async listProcesses(): Promise<SandboxProcess[]> {
+    const resp = await beamClient.request({
+      method: "GET",
+      url: `api/v1/gateway/pods/${this.containerId}/processes`,
+    });
+    const data = resp.data as PodSandboxListProcessesResponse;
+    if (!data.ok) {
+      throw new SandboxProcessError(data.errorMsg || "Failed to list processes");
+    }
+
+    const processInfos: ProcessInfo[] = data.processes || [];
+    if (!processInfos.length && data.pids?.length) {
+      processInfos.push(
+        ...data.pids.map((pid) => ({
+          pid,
+          running: true,
+          exitCode: -1,
+          cmd: "",
+          cwd: "",
+          env: [],
+        })),
+      );
+    }
+
+    this.processes = Object.fromEntries(
+      processInfos.map((info) => {
+        const process = this.processes[info.pid] || new SandboxProcess(this, info.pid);
+        process.running = info.running;
+        process.exitCode = info.running ? -1 : Number(info.exitCode ?? 0);
+        process.command = info.cmd;
+        process.cwd = info.cwd;
+        process.env = info.env || [];
+        return [info.pid, process];
+      }),
+    );
     return Object.values(this.processes);
   }
 
@@ -674,6 +865,10 @@ export class SandboxProcess {
   public sandbox_instance: SandboxInstance;
   public pid: number;
   public exitCode: number = -1;
+  public running?: boolean;
+  public command?: string;
+  public cwd?: string;
+  public env?: string[];
   private _status: string = "";
 
   constructor(sandboxInstance: SandboxInstance, pid: number) {
@@ -705,32 +900,48 @@ export class SandboxProcess {
 
   /** Get the status of the process: [exitCode, status]. */
   public async status(): Promise<[number, string]> {
-    const resp = await beamClient.request({
-      method: "GET",
-      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/status`,
-      params: { pid: this.pid },
-      timeout: 300000,
+    const data = await retryTransientSandboxCall(async () => {
+      const resp = await beamClient.request({
+        method: "GET",
+        url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/status`,
+        params: { pid: this.pid },
+        timeout: 300000,
+      });
+      const response = resp.data as {
+        ok: boolean;
+        errorMsg?: string;
+        status?: string;
+        exitCode?: number;
+      };
+      if (!response.ok) {
+        throw new SandboxProcessError(response.errorMsg || "Failed to get status");
+      }
+      return response;
     });
-    const data = resp.data as {
-      ok: boolean;
-      errorMsg?: string;
-      status?: string;
-      exitCode?: number;
-    };
-    if (!data.ok)
-      throw new SandboxProcessError(data.errorMsg || "Failed to get status");
     return [data.exitCode ?? -1, data.status || ""];
   }
 
   /** Get a handle to a stream of the process's stdout. */
   public get stdout(): SandboxProcessStream {
     return new SandboxProcessStream(this, async () => {
-      const resp = await beamClient.request({
-        method: "GET",
-        url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stdout`,
-        params: { pid: this.pid },
+      const data = await retryTransientSandboxCall(async () => {
+        const resp = await beamClient.request({
+          method: "GET",
+          url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stdout`,
+          params: { pid: this.pid },
+        });
+        const response = resp.data as {
+          ok: boolean;
+          errorMsg?: string;
+          stdout?: string;
+        };
+        if (!response.ok) {
+          throw new SandboxProcessError(
+            response.errorMsg || "Failed to read stdout",
+          );
+        }
+        return response;
       });
-      const data = resp.data as { ok: boolean; stdout?: string };
       return data.stdout || "";
     });
   }
@@ -738,12 +949,24 @@ export class SandboxProcess {
   /** Get a handle to a stream of the process's stderr. */
   public get stderr(): SandboxProcessStream {
     return new SandboxProcessStream(this, async () => {
-      const resp = await beamClient.request({
-        method: "GET",
-        url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stderr`,
-        params: { pid: this.pid },
+      const data = await retryTransientSandboxCall(async () => {
+        const resp = await beamClient.request({
+          method: "GET",
+          url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/stderr`,
+          params: { pid: this.pid },
+        });
+        const response = resp.data as {
+          ok: boolean;
+          errorMsg?: string;
+          stderr?: string;
+        };
+        if (!response.ok) {
+          throw new SandboxProcessError(
+            response.errorMsg || "Failed to read stderr",
+          );
+        }
+        return response;
       });
-      const data = resp.data as { ok: boolean; stderr?: string };
       return data.stderr || "";
     });
   }
@@ -832,6 +1055,72 @@ export class SandboxProcess {
       }
     }
     return new CombinedStream();
+  }
+}
+
+/** Thin Docker helpers for Docker-enabled sandboxes. */
+export class SandboxDockerManager {
+  private daemonReady = false;
+
+  constructor(private sandboxInstance: SandboxInstance) {}
+
+  public async ensureReady(timeoutMs: number = 60_000): Promise<void> {
+    if (this.daemonReady) {
+      return;
+    }
+
+    const deadline = Date.now() + timeoutMs;
+    let lastError = "";
+    while (Date.now() < deadline) {
+      try {
+        const process = await this.sandboxInstance.exec(["docker", "info"]);
+        const exitCode = await process.wait();
+        if (exitCode === 0) {
+          this.daemonReady = true;
+          return;
+        }
+        lastError = await process.stderr.read();
+      } catch (error) {
+        lastError = errorMessage(error);
+      }
+      await sleep(1_000);
+    }
+
+    throw new SandboxProcessError(
+      `Docker daemon did not become ready within ${timeoutMs}ms${
+        lastError ? `: ${lastError}` : ""
+      }`,
+    );
+  }
+
+  public async exec(args: string[], opts?: ExecOptions): Promise<SandboxProcess> {
+    await this.ensureReady();
+    return this.sandboxInstance.exec(["docker", ...args], opts);
+  }
+
+  public async run(
+    image: string,
+    args: string[] = [],
+    opts?: ExecOptions,
+  ): Promise<SandboxProcess> {
+    return this.exec(["run", ...DOCKER_SANDBOX_NAMESPACE_ARGS, ...args, image], opts);
+  }
+
+  public async compose(args: string[], opts?: ExecOptions): Promise<SandboxProcess> {
+    await this.ensureReady();
+    return this.sandboxInstance.exec(["docker", "compose", ...args], opts);
+  }
+
+  public async composeStandalone(
+    args: string[],
+    opts?: ExecOptions,
+  ): Promise<SandboxProcess> {
+    await this.ensureReady();
+    return this.sandboxInstance.exec(["docker-compose", ...args], opts);
+  }
+
+  public async version(opts?: ExecOptions): Promise<SandboxProcess> {
+    return this.exec(["version"], opts);
   }
 }
 
@@ -934,6 +1223,40 @@ export class SandboxFileSystem {
       );
   }
 
+  /** Write bytes to a file in the sandbox. */
+  public async writeBytes(
+    sandboxPath: string,
+    data: Buffer | Uint8Array | string,
+    mode: number = 0o644,
+  ): Promise<void> {
+    const content = typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
+    const resp = await beamClient.request({
+      method: "POST",
+      url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/files/upload`,
+      data: {
+        containerPath: sandboxPath,
+        mode,
+        data: content.toString("base64"),
+      },
+    });
+    const response = resp.data as { ok: boolean; errorMsg?: string };
+    if (!response.ok) {
+      throw new SandboxFileSystemError(
+        response.errorMsg || "Failed to write file",
+      );
+    }
+  }
+
+  /** Write text to a file in the sandbox. */
+  public async writeText(
+    sandboxPath: string,
+    text: string,
+    encoding: BufferEncoding = "utf8",
+    mode: number = 0o644,
+  ): Promise<void> {
+    await this.writeBytes(sandboxPath, Buffer.from(text, encoding), mode);
+  }
+
   /** Download a file from the sandbox to a local path. */
   public async downloadFile(
     sandboxPath: string,
@@ -952,6 +1275,29 @@ export class SandboxFileSystem {
       );
     const buf = Buffer.from(data.data, "base64");
     fs.writeFileSync(localPath, buf);
+  }
+
+  /** Read bytes from a file in the sandbox. */
+  public async readBytes(sandboxPath: string): Promise<Buffer> {
+    const resp = await beamClient.request({
+      method: "GET",
+      url: `api/v1/gateway/pods/${
+        this.sandbox_instance.containerId
+      }/files/download/${encodeURIComponent(sandboxPath)}`,
+    });
+    const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
+    if (!data.ok || !data.data) {
+      throw new SandboxFileSystemError(data.errorMsg || "Failed to read file");
+    }
+    return Buffer.from(data.data, "base64");
+  }
+
+  /** Read text from a file in the sandbox. */
+  public async readText(
+    sandboxPath: string,
+    encoding: BufferEncoding = "utf8",
+  ): Promise<string> {
+    return (await this.readBytes(sandboxPath)).toString(encoding);
   }
 
   /** Get the metadata of a file in the sandbox. */
@@ -1047,6 +1393,16 @@ export class SandboxFileSystem {
       throw new SandboxFileSystemError(
         data.errorMsg || "Failed to delete file",
       );
+  }
+
+  /** Remove a file or directory from the sandbox. */
+  public async remove(sandboxPath: string): Promise<void> {
+    const info = await this.statFile(sandboxPath);
+    if (info.isDir) {
+      await this.deleteDirectory(sandboxPath);
+      return;
+    }
+    await this.deleteFile(sandboxPath);
   }
 
   /** Replace a string in all files in a directory. */

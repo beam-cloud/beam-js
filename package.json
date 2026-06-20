@@ -26,7 +26,8 @@
   "scripts": {
     "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
-    "test": "jest"
+    "test": "jest",
+    "test:e2e:sandbox": "BEAM_SANDBOX_E2E=1 jest tests/sandbox.e2e.test.ts --runInBand --detectOpenHandles --forceExit"
   },
   "dependencies": {
     "archiver": "^7.0.1",

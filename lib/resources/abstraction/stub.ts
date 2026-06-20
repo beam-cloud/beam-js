@@ -54,6 +54,7 @@ export interface StubConfig {
   tcp: boolean;
   blockNetwork: boolean;
   allowList?: string[];
+  dockerEnabled: boolean;
 }
 
 export interface CreateStubConfig extends Partial<StubConfig> {
@@ -115,6 +116,7 @@ export class StubBuilder {
     tcp = false,
     blockNetwork = false,
     allowList = undefined,
+    dockerEnabled = false,
   }: CreateStubConfig) {
     this.config = {} as StubConfig;
     this.config.name = name;
@@ -144,6 +146,7 @@ export class StubBuilder {
     this.config.outputs = outputs;
     this.config.blockNetwork = blockNetwork;
     this.config.allowList = allowList;
+    this.config.dockerEnabled = dockerEnabled;
 
     if (this.config.blockNetwork && this.config.allowList !== undefined) {
       throw new Error(
@@ -362,6 +365,7 @@ export class StubBuilder {
         tcp: this.config.tcp,
         blockNetwork: this.config.blockNetwork,
         allowList: this.config.allowList,
+        dockerEnabled: this.config.dockerEnabled,
       };
 
       try {

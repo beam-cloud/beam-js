@@ -91,6 +91,36 @@ describe("Sandbox network parity", () => {
     });
   });
 
+  test("updates ttl with the sandbox ttl endpoint", async () => {
+    const requestMock = jest.spyOn(beamClient, "request").mockResolvedValue({
+      data: {
+        ok: true,
+        errorMsg: "",
+      },
+    });
+
+    const instance = new SandboxInstance(
+      {
+        containerId: "sandbox-123",
+        stubId: "stub-123",
+        url: "",
+        ok: true,
+        errorMsg: "",
+      },
+      new Sandbox({ name: "networked-sandbox" })
+    );
+
+    await expect(instance.updateTtl(120)).resolves.toBeUndefined();
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/api/v1/gateway/pods/sandbox-123/ttl",
+      data: {
+        ttl: 120,
+      },
+    });
+  });
+
   test("rejects conflicting network permission updates before making a request", async () => {
     const requestMock = jest.spyOn(beamClient, "request");
 
@@ -164,6 +194,74 @@ describe("Sandbox network parity", () => {
       3000: "https://3000.example.com",
       8080: "https://8080.example.com",
     });
+  });
+
+  test("lists processes from server state", async () => {
+    jest.spyOn(beamClient, "request").mockResolvedValue({
+      data: {
+        ok: true,
+        processes: [
+          {
+            pid: 42,
+            running: true,
+            exitCode: -1,
+            cmd: "sleep 60",
+            cwd: "/workspace",
+            env: ["A=B"],
+          },
+        ],
+        errorMsg: "",
+      },
+    });
+
+    const instance = new SandboxInstance(
+      {
+        containerId: "sandbox-123",
+        stubId: "stub-123",
+        url: "",
+        ok: true,
+        errorMsg: "",
+      },
+      new Sandbox({ name: "networked-sandbox" })
+    );
+
+    const processes = await instance.listProcesses();
+    expect(processes).toHaveLength(1);
+    expect(processes[0].pid).toBe(42);
+    expect(processes[0].command).toBe("sleep 60");
+    expect(instance.getProcess(42)).toBe(processes[0]);
+  });
+
+  test("runs string commands through the shell", async () => {
+    const requestMock = jest.spyOn(beamClient, "request").mockResolvedValue({
+      data: {
+        ok: true,
+        pid: 7,
+      },
+    });
+
+    const instance = new SandboxInstance(
+      {
+        containerId: "sandbox-123",
+        stubId: "stub-123",
+        url: "",
+        ok: true,
+        errorMsg: "",
+      },
+      new Sandbox({ name: "networked-sandbox" })
+    );
+
+    await instance.exec("echo hello && pwd");
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/api/v1/gateway/pods/sandbox-123/exec",
+        data: expect.objectContaining({
+          command: "'sh' '-lc' 'echo hello && pwd'",
+        }),
+      })
+    );
   });
 });
 
