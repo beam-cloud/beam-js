@@ -149,6 +149,7 @@ async function retryTransientSandboxCall<T>(
  */
 export class Sandbox extends Pod {
   public syncLocalDir: boolean = false;
+  private runtimePreparation?: Promise<boolean>;
 
   constructor(config: CreateStubConfig, syncLocalDir: boolean = false) {
     super(config);
@@ -280,12 +281,29 @@ export class Sandbox extends Pod {
 
     const ignorePatterns = this.syncLocalDir ? undefined : ["*"];
 
-    const prepared = await this.stub.prepareRuntime(
-      undefined,
-      EStubType.Sandbox,
-      true,
-      ignorePatterns,
-    );
+    if (!this.runtimePreparation) {
+      this.runtimePreparation = this.stub.prepareRuntime(
+        undefined,
+        EStubType.Sandbox,
+        true,
+        ignorePatterns,
+      );
+    }
+
+    const currentPreparation = this.runtimePreparation;
+    let prepared: boolean;
+    try {
+      prepared = await currentPreparation;
+    } catch (error) {
+      if (this.runtimePreparation === currentPreparation) {
+        this.runtimePreparation = undefined;
+      }
+      throw error;
+    }
+
+    if (!prepared && this.runtimePreparation === currentPreparation) {
+      this.runtimePreparation = undefined;
+    }
     if (!prepared) {
       const detail = this.stub.lastError?.message ?? "unknown reason";
       throw new SandboxConnectionError(`Failed to prepare runtime: ${detail}`);
@@ -602,7 +620,11 @@ export class SandboxInstance extends PodInstance {
     cwd?: string,
     env?: Record<string, string>,
   ): Promise<SandboxProcessResponse | SandboxProcess> {
-    const process = await this._exec(["python3", "-c", code], { cwd, env });
+    const process = await this._exec(["python3", "-c", code], {
+      cwd,
+      env,
+      wait: blocking,
+    });
     if (blocking) {
       await process.wait();
       const [stdoutStr, stderrStr] = await Promise.all([
@@ -641,7 +663,7 @@ export class SandboxInstance extends PodInstance {
 
   private async _exec(
     command: string[] | string,
-    opts?: { cwd?: string; env?: Record<string, string> },
+    opts?: ExecOptions,
   ): Promise<SandboxProcess> {
     const commandList = Array.isArray(command) ? command : [command];
     const shellCommand = commandList
@@ -655,6 +677,7 @@ export class SandboxInstance extends PodInstance {
         command: shellCommand,
         cwd: opts?.cwd,
         env: opts?.env,
+        wait: opts?.wait ?? false,
       },
     });
     const data = resp.data as PodSandboxExecResponse;
@@ -662,7 +685,7 @@ export class SandboxInstance extends PodInstance {
       throw new SandboxProcessError(data.errorMsg || "Failed to start process");
     }
 
-    const process = new SandboxProcess(this, data.pid);
+    const process = new SandboxProcess(this, data.pid, data);
     this.processes[data.pid] = process;
     return process;
   }
@@ -756,9 +779,15 @@ export class SandboxProcessStream {
   constructor(
     process: SandboxProcess,
     fetchFn: () => Promise<string> | string,
+    initialOutput?: string,
   ) {
     this.process = process;
     this.fetch_fn = fetchFn;
+    if (initialOutput !== undefined) {
+      this._buffer = initialOutput;
+      this._last_output = initialOutput;
+      this._closed = true;
+    }
   }
 
   public [Symbol.asyncIterator](): AsyncIterableIterator<string> {
@@ -844,6 +873,9 @@ export class SandboxProcessStream {
   public async read(): Promise<string> {
     let data = this._buffer;
     this._buffer = "";
+    if (this._closed) {
+      return data;
+    }
     while (true) {
       const chunk = await this._fetch_next_chunk();
       if (chunk) {
@@ -870,18 +902,39 @@ export class SandboxProcess {
   public cwd?: string;
   public env?: string[];
   private _status: string = "";
+  private _inlineDone: boolean = false;
+  private _inlineStdout: string = "";
+  private _inlineStderr: string = "";
 
-  constructor(sandboxInstance: SandboxInstance, pid: number) {
+  constructor(
+    sandboxInstance: SandboxInstance,
+    pid: number,
+    execResponse?: PodSandboxExecResponse,
+  ) {
     this.sandbox_instance = sandboxInstance;
     this.pid = pid;
+    if (execResponse?.done) {
+      this._inlineDone = true;
+      this.exitCode = execResponse.exitCode ?? 0;
+      this.running = false;
+      this._status = "done";
+      this._inlineStdout = execResponse.stdout || "";
+      this._inlineStderr = execResponse.stderr || "";
+    }
   }
 
   /** Wait for the process to complete and return the exit code. */
   public async wait(): Promise<number> {
+    if (this.exitCode >= 0) {
+      return this.exitCode;
+    }
+
     [this.exitCode, this._status] = await this.status();
     while (this.exitCode < 0) {
       [this.exitCode, this._status] = await this.status();
-      await new Promise((r) => setTimeout(r, 100));
+      if (this.exitCode < 0) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
     }
     return this.exitCode;
   }
@@ -943,7 +996,7 @@ export class SandboxProcess {
         return response;
       });
       return data.stdout || "";
-    });
+    }, this._inlineDone ? this._inlineStdout : undefined);
   }
 
   /** Get a handle to a stream of the process's stderr. */
@@ -968,7 +1021,7 @@ export class SandboxProcess {
         return response;
       });
       return data.stderr || "";
-    });
+    }, this._inlineDone ? this._inlineStderr : undefined);
   }
 
   /** Returns a combined stream of both stdout and stderr. */
