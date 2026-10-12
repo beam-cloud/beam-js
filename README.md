@@ -46,10 +46,15 @@ Create a durable Linux VM, run commands, snapshot its root, and fork it:
 import { beamOpts, VM } from "@beamcloud/beam-js";
 
 beamOpts.token = process.env.BEAM_TOKEN!;
-const vm = await VM.create({ name: "agent-workspace", cpu: 2, memory: "4Gi" });
-const process = await vm.exec(["node", "--version"]);
-await process.wait();
-console.log(await process.stdout.read());
+const vm = await VM.create({
+  name: "agent-workspace",
+  cpu: 2,
+  memory: "4Gi",
+  protectedPorts: [7681],
+});
+const command = await vm.exec(["node", "--version"]);
+await command.wait();
+console.log(await command.stdout.read());
 
 const snapshot = await vm.snapshots.create("ready");
 const branch = await snapshot.fork({ name: "experiment" });
@@ -84,17 +89,12 @@ async function main() {
     const result = await instance.runCode("print('hello from Beam JS')");
     console.log(result);
 
-    await instance.fs.writeText("/workspace/index.html", "hello from a sandbox");
+    await instance.fs.writeText(
+      "/workspace/index.html",
+      "hello from a sandbox",
+    );
     await instance.exec(
-      [
-        "python3",
-        "-u",
-        "-m",
-        "http.server",
-        "8765",
-        "--bind",
-        "0.0.0.0",
-      ],
+      ["python3", "-u", "-m", "http.server", "8765", "--bind", "0.0.0.0"],
       { cwd: "/workspace" },
     );
 

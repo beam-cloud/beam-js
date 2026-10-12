@@ -4,10 +4,20 @@
 systemd, optional Docker and SSH, a browser terminal, and an optional desktop.
 Every factory returns the same `VM` class.
 
+Install the SDK and configure a server-side Beam token:
+
+```bash
+npm install @beamcloud/beam-js@1.1.0
+export BEAM_TOKEN=YOUR_BEAM_TOKEN
+```
+
+Save the following example as `vm.mjs` and run it with `node vm.mjs`. The
+JavaScript examples also work in TypeScript; the package includes declarations.
+
 ```ts
 import { beamOpts, Image, VM, Volume } from "@beamcloud/beam-js";
 
-beamOpts.token = process.env.BEAM_TOKEN!;
+beamOpts.token = process.env.BEAM_TOKEN || "";
 beamOpts.workspaceId = process.env.BEAM_WORKSPACE_ID || "";
 
 const vm = await VM.create({
@@ -17,15 +27,16 @@ const vm = await VM.create({
   diskSize: "50Gi", // writable root, 1–100 GiB
   desktop: true,
   dockerEnabled: true,
+  protectedPorts: [7681, 8080],
   idleTimeout: 300, // idle seconds; 0 keeps running
   idleAction: "pause", // "stop" or "pause"
   autoResume: true,
   metadata: { user_id: "123" },
 });
 
-const process = await vm.exec(["node", "--version"]);
-await process.wait({ timeoutMs: 30_000 });
-console.log(await process.stdout.read());
+const command = await vm.exec(["node", "--version"]);
+await command.wait({ timeoutMs: 30_000 });
+console.log(await command.stdout.read());
 
 await vm.fs.writeText("/workspace/hello.txt", "hello");
 const png = await vm.desktop.screenshot("./desktop.png");
@@ -126,12 +137,13 @@ seed's settings; explicit `false`, `0` and empty arrays override them.
 ## Processes, stdin and logs
 
 ```ts
-const process = await vm.exec(["cat"], {
+const controller = new AbortController();
+const command = await vm.exec(["cat"], {
   stdin: "literal text 😀\n",
   cwd: "/workspace",
 });
-await process.wait({ timeoutMs: 10_000, signal: controller.signal });
-console.log(await process.stdout.read(), await process.stderr.read());
+await command.wait({ timeoutMs: 10_000, signal: controller.signal });
+console.log(await command.stdout.read(), await command.stderr.read());
 
 const server = await vm.execShell("npm run dev", {
   env: { NODE_ENV: "development" },
@@ -207,7 +219,8 @@ const custom = await VM.create({
 });
 const prepared = await VM.prepareImage(image, { desktop: true });
 const built = await prepared.build(); // standalone VM image build
-const fromId = await VM.create({ image: Image.fromId(built.imageId!) });
+if (!built.success || !built.imageId) throw new Error("VM image build failed");
+const fromId = await VM.create({ image: Image.fromId(built.imageId) });
 
 await custom.docker.version();
 await custom.docker.run("hello-world", ["--rm"]);

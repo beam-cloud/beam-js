@@ -8,15 +8,16 @@ async function main() {
     name: process.env.BEAM_VM_NAME,
     cpu: 2,
     memory: "4Gi",
+    protectedPorts: [7681],
     idleTimeout: 300,
     autoResume: true,
     metadata: { example: "vm-basic" },
   });
   console.log(vm.id, vm.name, vm.terminalUrl);
   await vm.fs.writeText("/workspace/hello.txt", "hello from JavaScript\n");
-  const process = await vm.exec(["cat", "/workspace/hello.txt"]);
-  await process.wait();
-  console.log(await process.stdout.read());
+  const command = await vm.exec(["cat", "/workspace/hello.txt"]);
+  await command.wait();
+  console.log(await command.stdout.read());
 
   const snapshot = await vm.snapshots.create();
   const branch = await snapshot.fork({ cpu: 1, memory: 512 });
