@@ -27,13 +27,13 @@ The official TypeScript/JavaScript SDK for [Beam Cloud](https://beam.cloud) - a 
 ## Installation
 
 ```bash
-npm install @beamcloud/beam-js@rc
+npm install @beamcloud/beam-js
 ```
 
 or with yarn:
 
 ```bash
-yarn add @beamcloud/beam-js@rc
+yarn add @beamcloud/beam-js
 ```
 
 ## Quickstart
@@ -48,23 +48,31 @@ import { beamOpts, VM } from "@beamcloud/beam-js";
 beamOpts.token = process.env.BEAM_TOKEN!;
 const vm = await VM.create({
   name: "agent-workspace",
-  cpu: 2,
-  memory: "4Gi",
+  cpu: 1,
+  memory: "2Gi",
   protectedPorts: [7681],
+  idleTimeout: 300,
+  idleAction: "pause",
+  autoResume: true,
 });
 const command = await vm.exec(["node", "--version"]);
 await command.wait();
 console.log(await command.stdout.read());
 
 const snapshot = await vm.snapshots.create("ready");
-const branch = await snapshot.fork({ name: "experiment" });
+const branch = await snapshot.fork({ name: "experiment", memory: "512Mi" });
+await branch.remove();
+await snapshot.delete();
 await vm.pause();
-await vm.resume();
+await vm.close();
+// Later: await VM.connect(vm.id); to delete: await vm.remove().
 ```
 
 One `VM` object exposes lifecycle, snapshots/templates, files, Docker, desktop
 controls, private tunnels, SSH/SCP, directory sync, prompts, logs and metrics.
 See the [VM guide and complete API/parity map](docs/virtual-machines.md).
+For a runnable JavaScript workflow with cleanup, see
+[the agent workspace example](examples/vm-agent-workspace.mjs).
 
 ### Sandboxes
 

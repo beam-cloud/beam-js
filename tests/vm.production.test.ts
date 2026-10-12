@@ -86,7 +86,7 @@ s.close()
     if (!published || !process.env.BEAM_TOKEN)
       throw new Error("BEAM_VM_PACKAGE and BEAM_TOKEN are required");
     expect(require(`${published}/package.json`).version).toBe(
-      process.env.BEAM_VM_EXPECT_VERSION || "1.1.1",
+      process.env.BEAM_VM_EXPECT_VERSION || "1.1.2",
     );
     Object.assign(beamOpts, {
       token: process.env.BEAM_TOKEN,

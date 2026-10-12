@@ -19,9 +19,9 @@ An invalid provider credential fails that inference check; it does not prevent
 the other VM capability checks from running.
 
 ```bash
-npm install --prefix /tmp/beam-sdk-registry @beamcloud/beam-js@1.1.1 --ignore-scripts
+npm install --prefix /tmp/beam-sdk-registry @beamcloud/beam-js@1.1.2 --ignore-scripts
 export BEAM_VM_PACKAGE=/tmp/beam-sdk-registry/node_modules/@beamcloud/beam-js
-export BEAM_VM_EXPECT_VERSION=1.1.1
+export BEAM_VM_EXPECT_VERSION=1.1.2
 # Select a Python executable with the current Beam SDK and grpc installed.
 export BEAM_VM_FIXTURE_PYTHON=/absolute/path/to/python3
 npm run test:e2e:vm:production
@@ -63,3 +63,29 @@ The production run exposed an intentional sync-close race in 1.1.0: an active
 rsync cancellation could reject `watcher.done` during `watcher.close()`. Version
 1.1.1 treats intentional closure as completion and preserves unexpected transfer
 failures as errors.
+
+## Plain JavaScript consumer workflow
+
+The package includes `examples/vm-agent-workspace.mjs`. From a project with the
+released SDK installed, run it with `BEAM_TOKEN` in the environment:
+
+```bash
+node node_modules/@beamcloud/beam-js/examples/vm-agent-workspace.mjs
+```
+
+It uses the public package import and the default image, without internal image
+IDs or a test framework. It checks execution, files, an independent snapshot
+fork, lookup while paused, reconnect/resume and durable-root restart, then
+removes its VMs and checkpoint. The first production run prepared and published
+the default image; a second run verified the image cache.
+
+On October 12, 2026, the two client-observed runs took 50.41 seconds and 1.38
+seconds to create an exec-ready VM. Image build and publication accounted for
+44.1 seconds of the first run. Snapshot forks took 1.40–1.46 seconds,
+pause/reconnect 0.93–1.00 seconds, and durable-root starts 0.71–0.75 seconds.
+These are individual end-to-end samples, including network requests, rather
+than an infrastructure benchmark.
+
+Version 1.1.2 corrects the npm README's installation command to use `latest`
+instead of the old `rc` tag, includes this example and clarifies reconnect and
+cleanup. Its runtime files are identical to 1.1.1.

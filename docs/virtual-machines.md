@@ -7,7 +7,7 @@ Every factory returns the same `VM` class.
 Install the SDK and configure a server-side Beam token:
 
 ```bash
-npm install @beamcloud/beam-js@1.1.1
+npm install @beamcloud/beam-js@1.1.2
 export BEAM_TOKEN=YOUR_BEAM_TOKEN
 ```
 
@@ -15,23 +15,20 @@ Save the following example as `vm.mjs` and run it with `node vm.mjs`. The
 JavaScript examples also work in TypeScript; the package includes declarations.
 
 ```ts
-import { beamOpts, Image, VM, Volume } from "@beamcloud/beam-js";
+import { beamOpts, VM } from "@beamcloud/beam-js";
 
 beamOpts.token = process.env.BEAM_TOKEN || "";
 beamOpts.workspaceId = process.env.BEAM_WORKSPACE_ID || "";
 
 const vm = await VM.create({
   name: "agent-workspace", // optional; otherwise generated
-  cpu: 4, // cores, or "4000m"
-  memory: "8Gi", // MiB or a quantity
-  diskSize: "50Gi", // writable root, 1–100 GiB
+  cpu: 1, // cores, or "1000m"
+  memory: "2Gi", // MiB or a quantity
   desktop: true,
-  dockerEnabled: true,
-  protectedPorts: [7681, 8080],
+  protectedPorts: [7681],
   idleTimeout: 300, // idle seconds; 0 keeps running
   idleAction: "pause", // "stop" or "pause"
   autoResume: true,
-  metadata: { user_id: "123" },
 });
 
 const command = await vm.exec(["node", "--version"]);
@@ -44,6 +41,11 @@ await vm.pause();
 await vm.resume();
 await vm.close(); // close local tunnels/watchers
 ```
+
+The example leaves the VM paused. Save `vm.id` and use `VM.connect(id)` for the
+next session; `vm.remove()` deletes it. For a plain JavaScript workflow that
+also checkpoints, forks, reconnects and cleans up, see
+[the runnable agent workspace example](../examples/vm-agent-workspace.mjs).
 
 `new VM(config).create()` is equivalent. The default image is Ubuntu 22.04,
 with 4 CPU cores, 8192 MiB of RAM and a 50 GiB writable root. VMs are CPU-only;
@@ -81,6 +83,11 @@ Startup/wait deadlines use `timeoutMs`; `signal` accepts an `AbortSignal`.
 Management results are cached on the object; call `refresh()` to read current
 state. `get()` and `list()` do not wake sleeping VMs. Guest operations wake them
 only when `autoResume` is enabled.
+
+For an agent returning to a known workspace, call `VM.connect(nameOrId)`.
+`VM.create({ name })` creates a new VM and reports a conflict if the name is
+already in use. Use an application-owned `requestId` when retrying the same
+creation, rather than generating another request after a timeout.
 
 `idleTimeout` (also accepted as Python/CLI's `ttl`) measures idle seconds. It
 stops or pauses the VM instead of deleting it. `stop({ noSnapshot: true })`
@@ -223,6 +230,8 @@ The `vm.fs` surface matches Sandbox: `uploadFile`, `downloadFile`, `writeText`,
 Each operation resolves the current boot automatically.
 
 ```ts
+import { Image, Volume } from "@beamcloud/beam-js";
+
 const image = await Image.fromDockerfile("./Dockerfile", ".");
 const custom = await VM.create({
   image,
