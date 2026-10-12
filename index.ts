@@ -4,6 +4,10 @@ export default BeamClient;
 export namespace BeamClient {}
 export { BeamClient };
 
+export { VM, VMError, VMArtifact, VMArtifacts, VMDesktop, VMProcess, VMProcessManager, VMFileSystem, VMDocker, VMTunnel } from "./lib";
+export type { VMPortForward, VMSyncHandle } from "./lib";
+export * from "./lib/types/vm";
+
 export { beamOpts } from "./lib";
 export type { BeamClientOpts } from "./lib";
 export {

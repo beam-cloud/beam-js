@@ -14,7 +14,7 @@ import {
   ImageCredentialValueNotFound,
 } from "../../types/image";
 import { camelCaseToSnakeCaseKeys } from "../../util";
-import beamClient from "../..";
+import beamClient from "../../client";
 
 const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
 const DEFAULT_IMAGE_BUILD_CACHE_TTL_MS = 300_000;
@@ -64,6 +64,7 @@ export class Image {
     this.config.pythonPackages = this._sanitizePythonPackages(pythonPackages);
 
     this.config.commands = commands;
+    this.config.buildSteps = buildSteps;
     this.config.baseImage = baseImage;
     this.config.baseImageCreds = this._processCredentials(baseImageCreds);
     this.config.envVars = envVars;
@@ -298,6 +299,7 @@ export class Image {
       gpu: this.config.gpu,
       ignorePython: this.config.ignorePython,
       imageId: this.config.imageId,
+      buildSteps: this.config.buildSteps,
     };
 
     const response = await this.verifyImageBuild(request);
@@ -355,6 +357,7 @@ export class Image {
       secrets: this.config.secrets,
       gpu: this.config.gpu,
       ignorePython: this.config.ignorePython,
+      buildSteps: this.config.buildSteps,
     };
 
     let lastResponse: BuildImageResponse = { success: false };
@@ -550,6 +553,31 @@ export class Image {
    */
   buildWithGpu(gpu: GpuType): Image {
     this.config.gpu = gpu;
+    return this;
+  }
+
+  /**
+   * Install Docker Engine, Docker CLI, Compose, and Buildx in the image.
+   *
+   * Use this with `new Sandbox({ image, dockerEnabled: true })`.
+   */
+  withDocker(): Image {
+    const dockerInstallCommands = [
+      "apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release",
+      "mkdir -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg",
+      'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null',
+      "apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin",
+      "ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose",
+      "docker --version && docker compose version && docker-compose version",
+      "apt-get clean && rm -rf /var/lib/apt/lists/*",
+    ];
+
+    this.config.buildSteps.push(
+      ...dockerInstallCommands.map((command) => ({
+        command,
+        type: "shell" as const,
+      })),
+    );
     return this;
   }
 

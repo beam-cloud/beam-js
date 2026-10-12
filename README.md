@@ -27,53 +27,134 @@ The official TypeScript/JavaScript SDK for [Beam Cloud](https://beam.cloud) - a 
 ## Installation
 
 ```bash
-npm install @beamcloud/beam-js@rc
+npm install @beamcloud/beam-js
 ```
 
 or with yarn:
 
 ```bash
-yarn add @beamcloud/beam-js@rc
+yarn add @beamcloud/beam-js
 ```
 
 ## Quickstart
 
-Run a simple Node.js server in a sandbox.
+### Persistent virtual machines
+
+Create a durable Linux VM, run commands, snapshot its root, and fork it:
+
+```typescript
+import { beamOpts, VM } from "@beamcloud/beam-js";
+
+beamOpts.token = process.env.BEAM_TOKEN!;
+const vm = await VM.create({
+  name: "agent-workspace",
+  cpu: 1,
+  memory: "2Gi",
+  protectedPorts: [7681],
+  idleTimeout: 300,
+  idleAction: "pause",
+  autoResume: true,
+});
+const command = await vm.exec(["node", "--version"]);
+await command.wait();
+console.log(await command.stdout.read());
+
+const snapshot = await vm.snapshots.create("ready");
+const branch = await snapshot.fork({ name: "experiment", memory: "512Mi" });
+await branch.remove();
+await snapshot.delete();
+await vm.pause();
+await vm.close();
+// Later: await VM.connect(vm.id); to delete: await vm.remove().
+```
+
+One `VM` object exposes lifecycle, snapshots/templates, files, Docker, desktop
+controls, private tunnels, SSH/SCP, directory sync, prompts, logs and metrics.
+See the [VM guide and complete API/parity map](docs/virtual-machines.md).
+For a runnable JavaScript workflow with cleanup, see
+[the agent workspace example](examples/vm-agent-workspace.mjs).
+
+### Sandboxes
+
+Create a sandbox, run code, write a file, and expose a small HTTP server.
 
 ```typescript
 import { beamOpts, Image, Sandbox } from "@beamcloud/beam-js";
 
 beamOpts.token = process.env.BEAM_TOKEN!;
-beamOpts.workspaceId = process.env.BEAM_WORKSPACE_ID!;
 
 async function main() {
-  const image = new Image({
-    baseImage: "node:20",
-    commands: [
-      "apt update",
-      "apt install -y nodejs npm",
-      "git clone https://github.com/beam-cloud/quickstart-node.git /app",
-    ],
-  });
-
   const sandbox = new Sandbox({
     name: "quickstart",
-    image: image,
-    cpu: 2,
-    memory: 1024,
+    image: Image.fromRegistry("python:3.11-slim"),
+    cpu: 1,
+    memory: "512Mi",
     keepWarmSeconds: 300,
   });
 
   const instance = await sandbox.create();
+  try {
+    const result = await instance.runCode("print('hello from Beam JS')");
+    console.log(result);
 
-  const process4 = await instance.exec(["sh", "-c", "cd /app && node server.js"]);
+    await instance.fs.writeText(
+      "/workspace/index.html",
+      "hello from a sandbox",
+    );
+    await instance.exec(
+      ["python3", "-u", "-m", "http.server", "8765", "--bind", "0.0.0.0"],
+      { cwd: "/workspace" },
+    );
 
-  const url = await instance.exposePort(3000);
-  console.log(`Server is running at ${url}`);
+    const url = await instance.exposePort(8765);
+    console.log(`Server is running at ${url}`);
+  } finally {
+    await instance.terminate();
+  }
 }
 
 main();
 ```
+
+## Sandbox examples
+
+Run these from a checkout of this repository:
+
+```bash
+BEAM_TOKEN=... npx tsx examples/sandbox-basic.ts
+BEAM_TOKEN=... npx tsx examples/sandbox-http.ts
+BEAM_TOKEN=... npx tsx examples/sandbox-snapshot.ts
+```
+
+Docker-in-Docker support requires an image with Docker installed and
+`dockerEnabled: true`:
+
+```bash
+BEAM_TOKEN=... npx tsx examples/sandbox-docker.ts
+```
+
+The SDK defaults to Beam production (`https://app.beam.cloud`). Set
+`BEAM_GATEWAY_URL` only when testing a development gateway.
+
+## Production sandbox e2e tests
+
+The normal test suite does not create cloud resources. Run the sandbox e2e tests
+explicitly:
+
+```bash
+BEAM_TOKEN=... npm run test:e2e:sandbox
+```
+
+Docker coverage is opt-in because it builds a Docker-enabled image:
+
+```bash
+BEAM_TOKEN=... BEAM_SANDBOX_E2E_DOCKER=1 npm run test:e2e:sandbox
+```
+
+VM release verification can load a fresh npm installation and exercise the full
+production surface, including image builds and persistent mounts. See
+[production VM validation](docs/production-vm-validation.md) for the setup and
+coverage.
 
 ## Support
 

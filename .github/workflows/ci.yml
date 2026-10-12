@@ -25,6 +25,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Build and verify package formats
+        run: npm run build && npm run test:package
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         if: matrix.node-version == '20.x'

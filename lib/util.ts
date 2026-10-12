@@ -1,4 +1,4 @@
-import { Schema } from "lib";
+import type { Schema } from "./types/schema";
 import { GpuTypeAlias } from "./types/common";
 import { createReadStream, statSync } from "fs";
 import axios from "axios";

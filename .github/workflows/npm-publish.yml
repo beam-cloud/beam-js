@@ -34,11 +34,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22.x"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Update npm to latest
-        run: npm install -g npm@latest
+      - name: Install npm with trusted publishing support
+        run: npm install -g npm@11.6.2
 
       - name: Install dependencies
         run: npm ci
@@ -57,6 +57,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify tests and package formats
+        run: npm test -- --runInBand && npm run test:package
 
       - name: Configure git
         run: |

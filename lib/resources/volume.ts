@@ -1,4 +1,4 @@
-import BeamClient from "../";
+import BeamClient from "../client";
 import { GetOrCreateVolumeResponse, VolumeGateway } from "../types/volume";
 
 export class Volume {
