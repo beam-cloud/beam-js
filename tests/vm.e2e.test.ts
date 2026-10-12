@@ -3,7 +3,12 @@ import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { request as httpRequest } from "http";
-import { beamOpts, Image, VM, VMArtifact } from "../lib";
+import type { VM as VMType, VMArtifact } from "../lib";
+
+// Point this at a fresh npm installation to validate the shipped artifact.
+const { beamOpts, Image, VM } = process.env.BEAM_VM_PACKAGE
+  ? require(process.env.BEAM_VM_PACKAGE)
+  : require("../lib");
 
 const runE2E = process.env.BEAM_VM_E2E === "1" ? describe : describe.skip;
 runE2E("Persistent VM live parity", () => {
@@ -32,7 +37,7 @@ runE2E("Persistent VM live parity", () => {
         : {}),
     };
     const vm = new VM(config);
-    const children: VM[] = [],
+    const children: VMType[] = [],
       artifacts: VMArtifact[] = [];
     const temporary = await mkdtemp(join(tmpdir(), "beam-js-vm-"));
     try {
@@ -56,7 +61,9 @@ runE2E("Persistent VM live parity", () => {
       await vm.fs.writeText("/workspace/empty.txt", "");
       expect(await vm.fs.readText("/workspace/empty.txt")).toBe("");
       expect(
-        (await VM.list({ metadata: { js_e2e: run } })).map((item) => item.id),
+        (await VM.list({ metadata: { js_e2e: run } })).map(
+          (item: VMType) => item.id,
+        ),
       ).toContain(vm.id);
       const metrics = await vm.metrics();
       expect(metrics.cpuCount).toBe(1);

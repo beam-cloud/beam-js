@@ -143,6 +143,11 @@ Docker coverage is opt-in because it builds a Docker-enabled image:
 BEAM_TOKEN=... BEAM_SANDBOX_E2E_DOCKER=1 npm run test:e2e:sandbox
 ```
 
+VM release verification can load a fresh npm installation and exercise the full
+production surface, including image builds and persistent mounts. See
+[production VM validation](docs/production-vm-validation.md) for the setup and
+coverage.
+
 ## Support
 
 - [Documentation](https://docs.beam.cloud/v2/reference/ts-sdk)

@@ -402,7 +402,9 @@ export abstract class VMAccess {
           })();
           void active
             .catch((error) => {
-              rejectDone(error);
+              // Closing intentionally aborts the in-flight rsync; it is completion,
+              // while unexpected transfer failures remain visible through done.
+              if (!closed) rejectDone(error);
               void handle.close();
             })
             .finally(() => {
