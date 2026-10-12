@@ -38,6 +38,31 @@ yarn add @beamcloud/beam-js@rc
 
 ## Quickstart
 
+### Persistent virtual machines
+
+Create a durable Linux VM, run commands, snapshot its root, and fork it:
+
+```typescript
+import { beamOpts, VM } from "@beamcloud/beam-js";
+
+beamOpts.token = process.env.BEAM_TOKEN!;
+const vm = await VM.create({ name: "agent-workspace", cpu: 2, memory: "4Gi" });
+const process = await vm.exec(["node", "--version"]);
+await process.wait();
+console.log(await process.stdout.read());
+
+const snapshot = await vm.snapshots.create("ready");
+const branch = await snapshot.fork({ name: "experiment" });
+await vm.pause();
+await vm.resume();
+```
+
+One `VM` object exposes lifecycle, snapshots/templates, files, Docker, desktop
+controls, private tunnels, SSH/SCP, directory sync, prompts, logs and metrics.
+See the [VM guide and complete API/parity map](docs/virtual-machines.md).
+
+### Sandboxes
+
 Create a sandbox, run code, write a file, and expose a small HTTP server.
 
 ```typescript

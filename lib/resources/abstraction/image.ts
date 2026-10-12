@@ -14,7 +14,7 @@ import {
   ImageCredentialValueNotFound,
 } from "../../types/image";
 import { camelCaseToSnakeCaseKeys } from "../../util";
-import beamClient from "../..";
+import beamClient from "../../client";
 
 const DEFAULT_PYTHON_VERSION: PythonVersion = PythonVersion.Python3;
 const DEFAULT_IMAGE_BUILD_CACHE_TTL_MS = 300_000;

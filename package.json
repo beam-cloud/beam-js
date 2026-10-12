@@ -1,6 +1,6 @@
 {
   "name": "@beamcloud/beam-js",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "description": "Javascript SDK to interact with Beam",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -19,15 +19,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/beam-cloud/beam-js.git"
+    "url": "git+https://github.com/beam-cloud/beam-js.git"
   },
   "author": "Luke <luke@beam.cloud>",
   "license": "MIT",
   "scripts": {
-    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "tsc-multi && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
+    "prebuild": "node ./scripts/generate-vm-assets.cjs && node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "tsc-multi && node ./scripts/copy-vm-assets.cjs && node ./scripts/make-dist-package-json.cjs > dist/package.json && cp README.md dist/README.md && cp LICENSE dist/LICENSE",
     "test": "jest",
-    "test:e2e:sandbox": "BEAM_SANDBOX_E2E=1 jest tests/sandbox.e2e.test.ts --runInBand --detectOpenHandles --forceExit"
+    "test:e2e:sandbox": "BEAM_SANDBOX_E2E=1 jest tests/sandbox.e2e.test.ts --runInBand --detectOpenHandles --forceExit",
+    "test:e2e:vm": "BEAM_VM_E2E=1 jest tests/vm.e2e.test.ts --runInBand --detectOpenHandles",
+    "test:package": "node ./scripts/verify-package.cjs"
   },
   "dependencies": {
     "archiver": "^7.0.1",
@@ -57,6 +59,18 @@
   "files": [
     "dist/**",
     "README.md",
-    "LICENSE"
-  ]
+    "LICENSE",
+    "docs/**"
+  ],
+  "directories": {
+    "example": "examples",
+    "lib": "lib",
+    "test": "tests"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/beam-cloud/beam-js/issues"
+  },
+  "homepage": "https://github.com/beam-cloud/beam-js#readme"
 }

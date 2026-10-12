@@ -17,7 +17,7 @@ import type {
   ExecOptions,
   ProcessInfo,
 } from "../../types/pod";
-import beamClient from "../..";
+import beamClient from "../../client";
 
 /** Error thrown when connecting to a sandbox fails. */
 export class SandboxConnectionError extends Error {}
@@ -952,13 +952,14 @@ export class SandboxProcess {
   }
 
   /** Get the status of the process: [exitCode, status]. */
-  public async status(): Promise<[number, string]> {
+  public async status(opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<[number, string]> {
     const data = await retryTransientSandboxCall(async () => {
       const resp = await beamClient.request({
         method: "GET",
         url: `api/v1/gateway/pods/${this.sandbox_instance.containerId}/status`,
         params: { pid: this.pid },
-        timeout: 300000,
+        timeout: opts.timeoutMs ?? 300000,
+        signal: opts.signal,
       });
       const response = resp.data as {
         ok: boolean;
@@ -970,7 +971,7 @@ export class SandboxProcess {
         throw new SandboxProcessError(response.errorMsg || "Failed to get status");
       }
       return response;
-    });
+    }, opts.timeoutMs ?? 120_000);
     return [data.exitCode ?? -1, data.status || ""];
   }
 
@@ -1322,7 +1323,7 @@ export class SandboxFileSystem {
       }/files/download/${encodeURIComponent(sandboxPath)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
-    if (!data.ok || !data.data)
+    if (!data.ok || data.data === undefined)
       throw new SandboxFileSystemError(
         data.errorMsg || "Failed to download file",
       );
@@ -1339,7 +1340,7 @@ export class SandboxFileSystem {
       }/files/download/${encodeURIComponent(sandboxPath)}`,
     });
     const data = resp.data as { ok: boolean; errorMsg?: string; data?: string };
-    if (!data.ok || !data.data) {
+    if (!data.ok || data.data === undefined) {
       throw new SandboxFileSystemError(data.errorMsg || "Failed to read file");
     }
     return Buffer.from(data.data, "base64");
