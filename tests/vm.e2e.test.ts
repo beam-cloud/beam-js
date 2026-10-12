@@ -208,6 +208,17 @@ runE2E("Persistent VM live parity", () => {
     } finally {
       for (const child of children) await child.remove();
       for (const artifact of artifacts) await artifact.delete();
+      // stop() creates a visible snapshot that survives source deletion.
+      const sourceIds = new Set<string>();
+      for (const source of [vm, ...children]) {
+        try { sourceIds.add(source.id); } catch { /* Creation never returned an ID. */ }
+      }
+      for (const artifact of [
+        ...(await VM.snapshots.list()),
+        ...(await VM.templates.list()),
+      ]) {
+        if (sourceIds.has(artifact.vmId)) await artifact.delete();
+      }
       try {
         await vm.remove();
       } catch (error: any) {

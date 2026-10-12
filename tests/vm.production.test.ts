@@ -133,6 +133,20 @@ s.close()
       await vm.remove().catch((error) => {
         if (error.status !== 404) failures.push(String(error.message));
       });
+    // Include automatic stop snapshots from every fixture, including mount VMs.
+    const sourceIds = new Set<string>();
+    for (const source of [vm, ...children]) {
+      try { sourceIds.add(source.id); } catch { /* Creation never returned an ID. */ }
+    }
+    for (const artifact of [
+      ...(await VM.snapshots.list()),
+      ...(await VM.templates.list()),
+    ]) {
+      if (sourceIds.has(artifact.vmId))
+        await artifact.delete().catch((error) => {
+          if (error.status !== 404) failures.push(String(error.message));
+        });
+    }
     if (local) await rm(local, { recursive: true, force: true });
     if (vm?.id) {
       expect(
