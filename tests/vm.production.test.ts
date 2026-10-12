@@ -699,7 +699,7 @@ s.close()
         diskSize: "1Gi",
         ssh: false,
         env: { FROM_CONFIG: "runtime-env" },
-        secrets: [secret, "ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        secrets: [secret, "ANTHROPIC_API_KEY"],
         disks: [{ name: disk, size: "1Gi", mountPath: "/disk-test" }],
         volumes: [volume],
         idleTimeout: 0,
@@ -744,23 +744,9 @@ s.close()
           120_000,
         ),
       ).toContain("beam-real-claude");
-      await output(await mounted.exec(["git", "init", "/workspace"]));
-      const codex = await mounted.prompt(
-        "Reply with exactly beam-real-codex and nothing else.",
-        { agent: "codex", background: true },
+      console.log(
+        "Custom image, mounts, secrets and real Claude response verified.",
       );
-      await eventually(async () => {
-        const logs = await mounted!.logs({ session: codex.session });
-        // The CLI echoes the user prompt too; require its assistant response.
-        expect(await logs.read()).toMatch(/\ncodex\nbeam-real-codex/);
-      }, 120_000);
-      await eventually(async () => {
-        const logs = await mounted!.logs({ unit: codex.unit, lines: 100 });
-        const text = await logs.read();
-        expect(text).toMatch(/Deactivated successfully/);
-        expect(text).not.toMatch(/status=[1-9][0-9]*\/FAILURE/);
-      });
-      console.log("Successful production Claude and Codex prompts verified.");
     } finally {
       if (mounted) await mounted.remove();
       fixture("secret", "delete", secret);
@@ -768,6 +754,56 @@ s.close()
       if (volumeCreated) {
         fixture("volume", "delete", volumeName);
       }
+    }
+  });
+
+  test("successful Codex background inference and completed service logs", async () => {
+    await vm.stop({ noSnapshot: true });
+    const secret = process.env.BEAM_VM_CODEX_SECRET || "OPENAI_API_KEY";
+    const codexVM: VMType = new VM({
+      name: `js-codex-${tag}`,
+      image: Image.fromId(process.env.BEAM_VM_IMAGE_ID || "2c83656c4669b293"),
+      cpu: 1,
+      memory: 512,
+      diskSize: "1Gi",
+      ssh: false,
+      desktop: false,
+      dockerEnabled: false,
+      secrets: [secret],
+      protectedPorts: [7681],
+      idleTimeout: 0,
+      metadata: { production_test: tag },
+    });
+    children.push(codexVM);
+    try {
+      await codexVM.create();
+      await output(await codexVM.exec(["git", "init", "/workspace"]));
+      await output(
+        await codexVM.exec([
+          "sh",
+          "-c",
+          'printenv -- "$1" | codex login --with-api-key',
+          "beam-auth",
+          secret,
+        ]),
+      );
+      const codex = await codexVM.prompt(
+        "Reply with exactly beam-real-codex and nothing else.",
+        { agent: "codex", background: true },
+      );
+      await eventually(async () => {
+        const logs = await codexVM.logs({ session: codex.session });
+        // The CLI echoes the user prompt too; require its assistant response.
+        expect(await logs.read()).toMatch(/\ncodex\nbeam-real-codex/);
+      }, 120_000);
+      await eventually(async () => {
+        const logs = await codexVM.logs({ unit: codex.unit, lines: 100 });
+        const text = await logs.read();
+        expect(text).toMatch(/Deactivated successfully/);
+        expect(text).not.toMatch(/status=[1-9][0-9]*\/FAILURE/);
+      });
+    } finally {
+      await codexVM.remove();
     }
   });
 });

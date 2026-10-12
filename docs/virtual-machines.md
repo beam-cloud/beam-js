@@ -200,6 +200,21 @@ Claude/Codex CLIs and durable session logs; configure the agent's credentials
 through VM environment variables or workspace secrets. Background prompts run
 as systemd units and return `{ session, unit }`.
 
+For headless Codex, provide `CODEX_API_KEY`, or sign in the guest CLI using an
+`OPENAI_API_KEY` secret before calling `prompt`:
+
+```javascript
+const login = await vm.execShell(
+  "printenv OPENAI_API_KEY | codex login --with-api-key",
+);
+if ((await login.wait()) !== 0) throw new Error(await login.stderr.read());
+```
+
+Codex also requires its working directory to be a Git repository. Initialize an
+empty workspace with `await (await vm.exec(["git", "init", "/workspace"])).wait()`.
+See [Codex authentication](https://learn.chatgpt.com/docs/auth) and
+[non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode).
+
 ## Files, images, disks and Docker
 
 The `vm.fs` surface matches Sandbox: `uploadFile`, `downloadFile`, `writeText`,

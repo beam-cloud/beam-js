@@ -11,7 +11,12 @@ volume and disk registration.
 Install this repository's development dependencies and the Python Beam SDK
 (used only to create and remove auxiliary resource fixtures). The extended suite
 expects the workspace secrets `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` for real
-agent calls. Keep `BEAM_TOKEN` in the environment.
+agent calls. The fixture signs in the guest Codex CLI using its injected key.
+Keep `BEAM_TOKEN` in the environment.
+
+`BEAM_VM_CODEX_SECRET` can name a different workspace secret for the Codex test.
+An invalid provider credential fails that inference check; it does not prevent
+the other VM capability checks from running.
 
 ```bash
 npm install --prefix /tmp/beam-sdk-registry @beamcloud/beam-js@1.1.1 --ignore-scripts
